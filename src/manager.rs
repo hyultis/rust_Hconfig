@@ -30,7 +30,6 @@ impl Manager
 	pub fn singleton() -> &'static Manager
 	{
 		SINGLETON.get_or_init(|| {
-			//RwLock::new(Manager::new())
 			Manager::new()
 		});
 
@@ -64,12 +63,17 @@ impl Manager
 			let lock = &mut self.loadedConfs.write().unwrap();
 			if !lock.contains_key(name)
 			{
-				let mut basepath = self.getConfPath()?;
+				let mut basepath = self.getConfPath().unwrap();
 				basepath.push_str("/");
 				basepath.push_str(name);
 				basepath.push_str(".json");
-				let configC = config::new(basepath).unwrap();
-				lock.insert(name.to_string(), configC);
+				let tmp = config::new(basepath.clone());
+				if tmp.is_err()
+				{
+					return Err(anyhow!("Unable to access '{:?}' file",basepath));
+				}
+				
+				lock.insert(name.to_string(), tmp.unwrap());
 			}
 		}
 
