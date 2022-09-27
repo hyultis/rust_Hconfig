@@ -1,0 +1,13 @@
+[package]
+name = "Hconfig"
+version = "1.0.0"
+authors = ["Hyultis <hyultis@use.startmail.com>"]
+edition = "2022"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+once_cell = "1.8.0"
+json = "0.12.4"
+anyhow = "1.0.51"
+backtrace = "0.3.63"
