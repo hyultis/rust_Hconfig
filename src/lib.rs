@@ -3,5 +3,6 @@
 #![allow(unused_imports)]
 #![allow(unused_parens)]
 
-pub mod config;
-pub mod manager;
+pub mod Config;
+pub mod Manager;
+pub mod Utils;

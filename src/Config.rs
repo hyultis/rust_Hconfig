@@ -41,7 +41,7 @@ impl Config
 	/**
 	 * reload content from file
 	*/
-	pub fn reload(&mut self) -> Result<bool>
+	pub fn reload(&mut self) -> Result<()>
 	{
 		println!("load config file path : {}",self.path);
 		let mut file = File::open(self.path.clone())?;
@@ -49,7 +49,7 @@ impl Config
 		file.read_to_string(&mut tmp)?;
 		let tmp = json::parse(tmp.as_str())?;
 		self.datas = Some(Arc::new(RwLock::new(tmp)));
-		return anyhow::Ok(true);
+		return anyhow::Ok(());
 	}
 	
 	
@@ -95,8 +95,8 @@ impl Config
 	fn get_recursive(&self, splintedPath:Vec<&str>, i:usize, parent:&JsonValue) -> Option<JsonValue>
 	{
 		let thisdir = splintedPath[i];
-		println!("dir : {}",thisdir);
-		println!( "{}", parent);
+		//println!("dir : {}",thisdir);
+		//println!( "{}", parent);
 		if(parent.is_array())
 		{
 			let tryingint: usize = thisdir.parse().unwrap();
@@ -138,7 +138,6 @@ impl Config
 		{
 			Some(oldvalue) => *oldvalue = JsonValue::String(newvalue),
 			None => {
-				println!("none to set");
 			}
 		}
 	}
@@ -157,7 +156,6 @@ impl Config
 		{
 			Some(oldvalue) => *oldvalue = JsonValue::Number(newvalueC),
 			None => {
-				println!("none to set");
 			}
 		}
 	}
@@ -176,7 +174,6 @@ impl Config
 		{
 			Some(oldvalue) => *oldvalue = newvalue,
 			None => {
-				println!("none to set");
 			}
 		}
 	}
@@ -184,8 +181,8 @@ impl Config
 	fn set_recursive<'a>(&self, splintedPath:Vec<&str>, i:usize, parent:&'a mut JsonValue) -> Option<&'a mut JsonValue>
 	{
 		let thisdir = splintedPath[i];
-		println!("dir : {}",thisdir);
-		println!( "{}", parent);
+		//println!("dir : {}",thisdir);
+		//println!( "{}", parent);
 		if(parent.is_array())
 		{
 			let tryingint: usize = thisdir.parse().unwrap();

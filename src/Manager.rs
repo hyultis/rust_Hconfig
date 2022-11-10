@@ -1,7 +1,7 @@
 
 use once_cell::sync::OnceCell;
 use std::str::FromStr;
-use super::config::Config as config;
+use super::Config::Config as config;
 use std::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -20,7 +20,7 @@ static SINGLETON: OnceCell<Manager> = OnceCell::new();
 
 impl Manager
 {
-	pub fn new() -> Manager {
+	fn new() -> Manager {
 		Manager{
 			confpath: RwLock::new(Err(anyhow!("ConfPath not defined."))),
 			loadedConfs: RwLock::new(HashMap::new())
