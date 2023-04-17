@@ -9,5 +9,7 @@ edition = "2021"
 [dependencies]
 once_cell = "1.8.0"
 json = "0.12.4"
-anyhow = "1.0.51"
-backtrace = "0.3.63"
+HArcMut = { path = "../HArcMut" }
+dashmap = "5.4.0"
+arc-swap = "1.6.0"
+thiserror = "1.0.40"
