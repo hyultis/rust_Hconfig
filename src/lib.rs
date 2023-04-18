@@ -4,6 +4,7 @@
 
 pub mod HConfig;
 pub mod HConfigManager;
+pub mod Utils;
 mod tests;
 
 use json::JsonError;
