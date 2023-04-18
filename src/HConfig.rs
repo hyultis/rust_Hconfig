@@ -18,19 +18,27 @@ impl HConfig
 	/// create new instance and autoload content
 	pub fn new(name: String,path: String) -> Result<HConfig,Errors>
 	{
-		let mut file = File::open(&path)
-			.map_err(|e|Errors::ConfigCannotLoadFile(name.clone(),path.clone(),e))?;
-		let mut tmp = String::new();
-		file.read_to_string(&mut tmp)
-			.map_err(|e|Errors::ConfigCannotConvertFileToJson(name.clone(),path.clone(),e))?;
+		let mut file;
+		if let Ok(tmp) = File::open(&path)
+		{
+			file = tmp;
+		}
+		else
+		{
+			file = File::create(&path).map_err(|err|Errors::ConfigCannotCreateFile(name.clone(),path.clone(),err))?;
+		}
 		
-		//let tmp = json::parse(tmp.as_str())?;
+		let mut tmp = String::new();
+		if(file.read_to_string(&mut tmp).is_err() || tmp.is_empty())
+		{
+			tmp = "{}".to_string();
+		}
 
 		let mut tmp = HConfig
 		{
 			name,
 			path : path.clone(),
-			datas : JsonValue::new_object()
+			datas : json::parse(tmp.as_str()).unwrap()
 		};
 		tmp.reload()?;
 		return Ok(tmp);
@@ -43,10 +51,12 @@ impl HConfig
 	{
 		//println!("load config file path : {}",self.path);
 		let mut file = File::open(self.path.clone())
-			.map_err(|e|Errors::ConfigCannotLoadFile(self.name.clone(),self.path.clone(),e))?;
+			.map_err(|e|Errors::ConfigCannotCreateFile(self.name.clone(),self.path.clone(),e))?;
 		let mut tmp = String::new();
-		file.read_to_string(&mut tmp)
-			.map_err(|e|Errors::ConfigCannotConvertFileToJson(self.name.clone(),self.path.clone(),e))?;
+		if(file.read_to_string(&mut tmp).is_err() || tmp.is_empty())
+		{
+			tmp = "{}".to_string();
+		}
 		self.datas = json::parse(tmp.as_str())
 			.map_err(|e|Errors::ConfigCannotConvertFileToJsonValue(self.name.clone(),self.path.clone(),e))?;
 		return Ok(());
