@@ -1,7 +1,8 @@
 
-use std::fs::File;
+use std::fs::{File, rename};
 use std::io::Read;
 use std::fmt;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use json::JsonValue;
 use crate::Errors;
 
@@ -66,9 +67,13 @@ impl HConfig
 	/// save content into file
 	pub fn save(&self) -> Result<bool,Errors>
 	{
-		//println!("save config file path : {}",self.path);
-		let Rfile = File::create(&self.path);
+		
+		let tmppath = format!("{}_{}",self.path,SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos().to_string());
+		let Rfile = File::create(&tmppath);
 		self.datas.write_pretty(&mut Rfile.unwrap(),4)
+			.map_err(|e|Errors::ConfigCannotSaveFile(self.name.clone(),self.path.clone(),e))?;
+		
+		rename(tmppath,self.path.clone())
 			.map_err(|e|Errors::ConfigCannotSaveFile(self.name.clone(),self.path.clone(),e))?;
 		return Ok(true);
 	}
