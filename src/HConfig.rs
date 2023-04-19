@@ -147,22 +147,20 @@ fn set_recursive<'a>(splintedPath:Vec<&str>, i:usize, parent:&'a mut JsonValue) 
 		{
 			return set_recursive(splintedPath, i+1, &mut parent[tryingint]);
 		}
-		else
-		{
-			return Some(&mut parent[tryingint]);
-		}
+		
+		return Some(&mut parent[tryingint]);
 	}
 	else
 	{
 		if (!parent.has_key(thisdir))
 		{
-			return None;
+			parent[thisdir] = JsonValue::new_object();
 		}
-		else if (i + 1 < splintedPath.len())
+		
+		if (i + 1 < splintedPath.len())
 		{
 			return set_recursive(splintedPath, i+1, &mut parent[thisdir]);
 		}
-		
 		return Some(&mut parent[thisdir]);
 	}
 }
