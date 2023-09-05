@@ -1,25 +1,23 @@
-use once_cell::sync::OnceCell;
-use std::sync::Arc;
-use arc_swap::ArcSwapOption;
+use std::sync::{Arc, OnceLock};
+use arc_swap::ArcSwap;
 use dashmap::DashMap;
-use HArcMut::HArcMut;
 use crate::HConfig::HConfig;
-use crate::Errors;
+use crate::guard::Guard;
 
 
 pub struct HConfigManager
 {
-	confpath: ArcSwapOption<String>,
-	loadedConfs: DashMap<String, HArcMut<HConfig>>,
+	confpath: ArcSwap<String>,
+	loadedConfs: DashMap<String, HConfig>,
 }
 
-static SINGLETON: OnceCell<HConfigManager> = OnceCell::new();
+static SINGLETON: OnceLock<HConfigManager> = OnceLock::new();
 
 impl HConfigManager
 {
 	fn new() -> HConfigManager {
 		HConfigManager {
-			confpath: ArcSwapOption::new(None),
+			confpath: ArcSwap::new(Arc::new("./".to_string())),
 			loadedConfs: DashMap::new(),
 		}
 	}
@@ -33,35 +31,34 @@ impl HConfigManager
 		SINGLETON.get().unwrap()
 	}
 	
-	pub fn setConfPath(&self, path: &str)
+	pub fn setConfPath(&self, path: impl Into<String>)
 	{
-		self.confpath.swap(Some(Arc::new(path.to_string())));
+		let path = path.into();
+		self.confpath.swap(Arc::new(path));
 	}
 	
-	pub fn getConfPath(&self) -> Option<String>
+	pub fn getConfPath(&self) -> String
 	{
-		return self.confpath.load_full().map(|tmp| tmp.to_string());
+		return (&**self.confpath.load()).clone();
 	}
 	
-	pub fn get(&self, name: &str) -> Result<HArcMut<HConfig>, Errors>
+	pub fn get(&self, name: impl Into<String>) -> Guard<'_>
 	{
-		if (self.confpath.load().is_none())
+		let name = name.into();
+		if !self.loadedConfs.contains_key(&name)
 		{
-			return Err(Errors::ConfigNotSet);
-		}
-		
-		if !self.loadedConfs.contains_key(name)
-		{
-			let mut basepath = self.getConfPath().unwrap();
+			let mut basepath = self.getConfPath();
 			basepath.push_str("/");
-			basepath.push_str(name);
+			basepath.push_str(&name);
 			basepath.push_str(".json");
-			let newvalue = HConfig::new(name.to_string(), basepath)?;
-			let newvalue = HArcMut::new(newvalue);
-			self.loadedConfs.insert(name.to_string(), newvalue.clone());
-			return Ok(newvalue);
+			let newvalue = HConfig::new(name.to_string(), basepath).expect(format!("Error HConfigManager on '{}'",&name).as_str());
+			
+			self.loadedConfs.insert(name.clone(), newvalue);
 		}
 		
-		return Ok(self.loadedConfs.get(name).unwrap().clone());
+		return Guard{
+			context: self,
+			guarded: self.loadedConfs.get_mut(&name).expect(format!("Error HConfigManager on '{}' : this error is not normally possible",&name).as_str()),
+		};
 	}
 }

@@ -62,40 +62,62 @@ impl HConfig
 	
 	
 	/// save content into file
-	pub fn save(&self) -> Result<bool, Errors>
+	pub fn save(&self) -> Result<String, Errors>
 	{
 		let tmppath = format!("{}_{}", self.path, SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos().to_string());
 		let Rfile = File::create(&tmppath);
 		self.datas.write_pretty(&mut Rfile.unwrap(), 4)
 			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
 		
-		rename(tmppath, self.path.clone())
+		rename(&tmppath, self.path.clone())
 			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
-		return Ok(true);
+		return Ok(tmppath);
 	}
 	
 	/// get content from a path (unsigned int for array)
-	pub fn get(&self, path: &str) -> Option<JsonValue>
+	pub fn get(&self, path: impl Into<String>) -> Option<JsonValue>
 	{
-		let splitedPath: Vec<&str> = path.split("/").collect();
+		let path = path.into();
+		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
 		return get_recursive(splitedPath, 0, &self.datas);
 	}
 	
-	/// set content to a path (unsigned int for array)
-	pub fn set(&mut self, path: &str, mut howToUpdate: impl FnMut(&mut JsonValue))
+	/// get content from a path (unsigned int for array), or SET default and return it instead
+	pub fn getOrSetDefault(&mut self, path: impl Into<String>, default: JsonValue) -> JsonValue
 	{
-		let splitedPath: Vec<&str> = path.split("/").collect();
+		let path = path.into();
+		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
+		
+		return match get_recursive(splitedPath.clone(), 0, &self.datas) {
+			None => {
+				if let Some(defaultset) = set_recursive(splitedPath,0,&mut self.datas)
+				{
+					*defaultset = default.clone();
+				}
+				default
+			}
+			Some(value) => value
+		};
+	}
+	
+	/// set content to a path (unsigned int for array)
+	pub fn set<T>(&mut self, path: impl Into<String>, newval: T)
+		where T: Into<JsonValue>
+	{
+		let path = path.into();
+		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
 		if let Some(oldvalue) = set_recursive(splitedPath, 0, &mut self.datas)
 		{
-			howToUpdate(oldvalue);
+			*oldvalue = newval.into();
 		}
 	}
 	
 	/// set content to a path (unsigned int for array)
-	pub fn get_mut<'a,'b>(&'b mut self, path: &str) -> Option<&'a mut JsonValue>
+	pub fn get_mut<'a,'b>(&'b mut self, path: impl Into<String>) -> Option<&'a mut JsonValue>
 		where 'b: 'a
 	{
-		let splitedPath: Vec<&str> = path.split("/").collect();
+		let path = path.into();
+		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
 		set_recursive(splitedPath, 0, &mut self.datas)
 	}
 }
@@ -107,50 +129,67 @@ impl fmt::Display for HConfig {
 	}
 }
 
-fn get_recursive(splintedPath: Vec<&str>, i: usize, parent: &JsonValue) -> Option<JsonValue>
+fn get_recursive(splintedPath: Vec<String>, i: usize, parent: &JsonValue) -> Option<JsonValue>
 {
-	let thisdir = splintedPath[i];
+	let thisdir = splintedPath.get(i);
+	if(thisdir.is_none())
+	{
+		return None;
+	}
+	let thisdir = thisdir.unwrap();
+	
 	if (parent.is_array())
 	{
-		let tryingint: usize = thisdir.parse::<usize>().unwrap();
-		if (tryingint >= parent.len())
+		if let Ok(tryingint) = thisdir.parse::<usize>()
 		{
-			return None;
-		} else if (i + 1 < splintedPath.len())
-		{
-			return get_recursive(splintedPath, i + 1, &parent[tryingint]);
+			if (tryingint >= parent.len())
+			{
+				return None;
+			} else if (i + 1 < splintedPath.len())
+			{
+				return get_recursive(splintedPath.clone(), i + 1, &parent[tryingint]);
+			}
+			return Some(parent[tryingint].clone());
 		}
-		return Some(parent[tryingint].clone());
+		return None;
 	} else {
 		if (!parent.has_key(thisdir))
 		{
 			return None;
 		} else if (i + 1 < splintedPath.len())
 		{
-			return get_recursive(splintedPath, i + 1, &parent[thisdir]);
+			return get_recursive(splintedPath.clone(), i + 1, &parent[thisdir]);
 		}
 		
 		return Some(parent[thisdir].clone());
 	}
 }
 
-fn set_recursive<'a>(splintedPath: Vec<&str>, i: usize, parent: &'a mut JsonValue) -> Option<&'a mut JsonValue>
+fn set_recursive<'a>(splintedPath: Vec<String>, i: usize, parent: &'a mut JsonValue) -> Option<&'a mut JsonValue>
 {
-	let thisdir = splintedPath[i];
-	//println!("dir : {}",thisdir);
-	//println!( "{}", parent);
+	let thisdir = splintedPath.get(i);
+	if(thisdir.is_none())
+	{
+		return None;
+	}
+	let thisdir = thisdir.unwrap();
+	
 	if (parent.is_array())
 	{
-		let tryingint: usize = thisdir.parse::<usize>().unwrap();
-		if (tryingint < parent.len())
+		if let Ok(tryingint) = thisdir.parse::<usize>()
 		{
-			return None;
-		} else if (i + 1 < splintedPath.len())
-		{
-			return set_recursive(splintedPath, i + 1, &mut parent[tryingint]);
+			if (tryingint < parent.len())
+			{
+				return None;
+			}
+			else if (i + 1 < splintedPath.len())
+			{
+				return set_recursive(splintedPath.clone(), i + 1, &mut parent[tryingint]);
+			}
+			
+			return Some(&mut parent[tryingint]);
 		}
-		
-		return Some(&mut parent[tryingint]);
+		return None;
 	} else {
 		if (!parent.has_key(thisdir))
 		{
@@ -159,7 +198,7 @@ fn set_recursive<'a>(splintedPath: Vec<&str>, i: usize, parent: &'a mut JsonValu
 		
 		if (i + 1 < splintedPath.len())
 		{
-			return set_recursive(splintedPath, i + 1, &mut parent[thisdir]);
+			return set_recursive(splintedPath.clone(), i + 1, &mut parent[thisdir]);
 		}
 		return Some(&mut parent[thisdir]);
 	}

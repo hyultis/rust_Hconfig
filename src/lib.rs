@@ -5,6 +5,7 @@
 pub mod HConfig;
 pub mod HConfigManager;
 pub mod Utils;
+pub mod guard;
 
 use json::JsonError;
 use thiserror::Error;

@@ -24,14 +24,11 @@ mod tests {
 		}").unwrap();
 		
 		HConfigManager::singleton().setConfPath("./config");
-		let bindingconfig = HConfigManager::singleton().get("test").unwrap();
-		let mut config = bindingconfig.get_mut();
+		let mut config = HConfigManager::singleton().get("test");
 		assert_eq!(config.get("testget").unwrap(), "test is ok");
 		assert_eq!(config.get("testarray/1").unwrap(), "test is ok");
 		
-		config.set("testset", |tmp| {
-			*tmp = JsonValue::String("test is ok".to_string());
-		});
+		config.set("testset", "test is ok".to_string());
 		config.save().expect("Cannot save updated config");
 		assert_eq!(config.get("testset").unwrap(), "test is ok");
 		
