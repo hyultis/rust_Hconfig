@@ -36,7 +36,7 @@ impl HConfig
 		{
 			name,
 			path: path.clone(),
-			datas: json::parse(tmp.as_str()).unwrap(),
+			datas: json::parse(tmp.as_str()).unwrap_or(JsonValue::new_object()),
 		};
 		tmp.reload()?;
 		return Ok(tmp);
@@ -98,6 +98,12 @@ impl HConfig
 			}
 			Some(value) => value
 		};
+	}
+	
+	/// get root node
+	pub fn getRoot(&self) -> &JsonValue
+	{
+		return &self.datas;
 	}
 	
 	/// set content to a path (unsigned int for array)

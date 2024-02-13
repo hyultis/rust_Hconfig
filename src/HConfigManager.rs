@@ -15,20 +15,14 @@ static SINGLETON: OnceLock<HConfigManager> = OnceLock::new();
 
 impl HConfigManager
 {
-	fn new() -> HConfigManager {
-		HConfigManager {
-			confpath: ArcSwap::new(Arc::new("./".to_string())),
-			loadedConfs: DashMap::new(),
-		}
-	}
-	
 	pub fn singleton() -> &'static HConfigManager
 	{
 		SINGLETON.get_or_init(|| {
-			HConfigManager::new()
-		});
-		
-		SINGLETON.get().unwrap()
+			HConfigManager {
+				confpath: ArcSwap::new(Arc::new("./".to_string())),
+				loadedConfs: DashMap::new(),
+			}
+		})
 	}
 	
 	pub fn setConfPath(&self, path: impl Into<String>)
@@ -45,7 +39,8 @@ impl HConfigManager
 	pub fn get(&self, name: impl Into<String>) -> Guard<'_>
 	{
 		let name = name.into();
-		if !self.loadedConfs.contains_key(&name)
+		let containkey = {self.loadedConfs.contains_key(&name)};
+		if !containkey
 		{
 			let mut basepath = self.getConfPath();
 			basepath.push_str("/");
