@@ -14,10 +14,10 @@ mod tests {
 		let configDir = Path::new("./config");
 		if (!configDir.exists())
 		{
-			create_dir(configDir).unwrap();
+			create_dir(configDir).expect(format!("Cannot create : {configDir:?}").as_str());
 		}
 		let testConfFile = Path::new("./config/test.json");
-		let mut Rfile = File::create(testConfFile).unwrap();
+		let mut Rfile = File::create(testConfFile).expect(format!("Cannot create : {testConfFile:?}").as_str());
 		Rfile.write_all(b"{\
 			\"testget\":\"test is ok\",\
 			\"testarray\":[\"ignore\",\"test is ok\",\"ignore\"]
@@ -25,18 +25,23 @@ mod tests {
 		
 		HConfigManager::singleton().setConfPath("./config");
 		let mut config = HConfigManager::singleton().get("test");
-		assert_eq!(config.get("testget").unwrap(), "test is ok");
-		assert_eq!(config.get("testarray/1").unwrap(), "test is ok");
+		assert_eq!(unwrap_or_not(config.get("testget")), "test is ok");
+		assert_eq!(unwrap_or_not(config.get("testarray/1")), "test is ok");
 		
 		config.set("testset", "test is ok".to_string());
 		config.save().expect("Cannot save updated config");
-		assert_eq!(config.get("testset").unwrap(), "test is ok");
+		assert_eq!(unwrap_or_not(config.get("testset")), "test is ok");
 		
 		if let Some(tmp) = config.get_mut("test/get/mut")
 		{
 			*tmp = JsonValue::String("test is ok".to_string());
 		}
 		config.save().expect("Cannot save updated config");
-		assert_eq!(config.get("test/get/mut").unwrap(), "test is ok");
+		assert_eq!(unwrap_or_not(config.get("test/get/mut")), "test is ok");
+	}
+	
+	fn unwrap_or_not(base: Option<JsonValue>) -> JsonValue
+	{
+		return base.unwrap_or_else(||{JsonValue::String("not ok".to_string())});
 	}
 }

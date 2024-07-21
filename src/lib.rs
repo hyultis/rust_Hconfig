@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 #![allow(unused_parens)]
+#![deny(unused_crate_dependencies)]
 
 pub mod HConfig;
 pub mod HConfigManager;

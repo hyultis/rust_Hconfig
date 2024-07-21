@@ -8,6 +8,6 @@ edition = "2021"
 
 [dependencies]
 json = "0.12.4"
-dashmap = "5.4.0"
-arc-swap = "1.6.0"
-thiserror = "1.0.40"
+dashmap = "6.0.1"
+arc-swap = "1.7.1"
+thiserror = "1.0.63"
