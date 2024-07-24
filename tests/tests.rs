@@ -4,7 +4,7 @@
 #[cfg(test)]
 mod tests {
 	use std::fs::{create_dir, File};
-	use std::io::Write;
+	use std::io::{ErrorKind, Write};
 	use std::path::Path;
 	use Hconfig::rusty_json::base::JsonValue;
 	use Hconfig::HConfigManager::HConfigManager;
@@ -75,7 +75,11 @@ mod tests {
 		let configDir = Path::new("./config");
 		if (!configDir.exists())
 		{
-			create_dir(configDir).expect(format!("Cannot create : {configDir:?}").as_str());
+			match create_dir(configDir) {
+				Ok(_) => {},
+				Err(ref _e) if _e.kind() == ErrorKind::AlreadyExists   => {},
+				Err(e) => {panic!("Cannot create \"{configDir:?}\": {e}")}
+			}
 		}
 		let testConfFile = Path::new("./config/test.json");
 		let mut Rfile = File::options().create(true).write(true).truncate(true).open(testConfFile).expect(format!("Cannot create : {testConfFile:?}").as_str());

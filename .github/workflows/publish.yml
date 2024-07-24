@@ -1,4 +1,4 @@
-name: check-and-publish
+name: tests-and-publish
 run-name: Check code and publish new version on crate.io
 on: [workflow_dispatch]
 
