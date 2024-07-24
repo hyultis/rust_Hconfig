@@ -19,7 +19,7 @@ fn main()
     // configuration path, the directory need to be existing or created before continuing
 	HConfigManager::singleton().setConfPath("./config");
 	
-	// get a "config", the name "test" mean "./config/test.json"
+	// get a "config", the name "example" mean "./config/example.json"
 	let mut config = HConfigManager::singleton().get("example");
 	
 	// exemple of getting a var and getting a string (parse is from rusty_json)
