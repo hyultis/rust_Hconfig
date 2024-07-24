@@ -1,25 +1,23 @@
 name: check-and-publish
 run-name: Check code and publish new version on crate.io
 on: [workflow_dispatch]
+
+env:
+    CARGO_TERM_COLOR: always
+
 jobs:
     tests:
         runs-on: ubuntu-latest
         steps:
-            -   uses: actions/checkout@v3
-            -   uses: actions-rs/toolchain@v1
-                with:
-                    toolchain: stable
-                    override: true
+            -   uses: actions/checkout@v4
             -   name: Run cargo check
-                uses: actions-rs/cargo@v1
-                with:
-                    command: test --test tests
+                run: cargo test --test tests
 
     publish:
         runs-on: ubuntu-latest
         needs: tests
         steps:
-            -   uses: actions/checkout@v3
+            -   uses: actions/checkout@v4
             -   uses: actions-rs/toolchain@v1
                 with:
                     toolchain: stable
