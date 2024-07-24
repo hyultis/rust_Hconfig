@@ -78,7 +78,8 @@ mod tests {
 			create_dir(configDir).expect(format!("Cannot create : {configDir:?}").as_str());
 		}
 		let testConfFile = Path::new("./config/test.json");
-		let mut Rfile = File::create(testConfFile).expect(format!("Cannot create : {testConfFile:?}").as_str());
+		let mut Rfile = File::options().create(true).write(true).truncate(true).open(testConfFile).expect(format!("Cannot create : {testConfFile:?}").as_str());
+		//let mut Rfile = File::create(testConfFile).expect(format!("Cannot create : {testConfFile:?}").as_str());
 		Rfile.write_all(b"{\
 			\"testget\":\"testget is ok\",\
 			\"testarray\":[\"ignore\",\"testarray is ok\",\"ignore\"]
