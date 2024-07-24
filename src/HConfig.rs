@@ -1,8 +1,9 @@
 use std::fs::{File, rename};
-use std::io::Read;
+use std::io::{Read, Write};
 use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
-use json::JsonValue;
+use rusty_json::base::{JsonObject, JsonValue};
+use rusty_json::extra::{JsonFormatter, JsonParser};
 use crate::Errors;
 
 #[derive(Clone, Debug)]
@@ -36,7 +37,7 @@ impl HConfig
 		{
 			name,
 			path: path.clone(),
-			datas: json::parse(tmp.as_str()).unwrap_or(JsonValue::new_object()),
+			datas: JsonParser::parse(tmp.as_str()).unwrap_or(JsonValue::Object(JsonObject::new())),
 		};
 		tmp.reload()?;
 		return Ok(tmp);
@@ -55,7 +56,7 @@ impl HConfig
 		{
 			tmp = "{}".to_string();
 		}
-		self.datas = json::parse(tmp.as_str())
+		self.datas = JsonParser::parse(tmp.as_str())
 			.map_err(|e| Errors::ConfigCannotConvertFileToJsonValue(self.name.clone(), self.path.clone(), e))?;
 		return Ok(());
 	}
@@ -65,8 +66,11 @@ impl HConfig
 	pub fn save(&self) -> Result<String, Errors>
 	{
 		let tmppath = format!("{}_{}", self.path, SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos().to_string());
-		let Rfile = File::create(&tmppath);
-		self.datas.write_pretty(&mut Rfile.unwrap(), 4)
+		let mut Rfile = File::create(&tmppath)
+			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
+		
+		let formatter = JsonFormatter::default();
+		Rfile.write_all(formatter.format(&self.datas).as_bytes())
 			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
 		
 		rename(&tmppath, self.path.clone())
@@ -143,31 +147,38 @@ fn get_recursive(splintedPath: Vec<String>, i: usize, parent: &JsonValue) -> Opt
 		return None;
 	}
 	let thisdir = thisdir.unwrap();
-	
-	if (parent.is_array())
+	if let JsonValue::Array(parentAsArray) = &parent
 	{
 		if let Ok(tryingint) = thisdir.parse::<usize>()
 		{
-			if (tryingint >= parent.len())
+			if (tryingint >= parentAsArray.len())
 			{
 				return None;
-			} else if (i + 1 < splintedPath.len())
-			{
-				return get_recursive(splintedPath.clone(), i + 1, &parent[tryingint]);
 			}
-			return Some(parent[tryingint].clone());
+			else if (i + 1 < splintedPath.len())
+			{
+				return get_recursive(splintedPath.clone(), i + 1, parentAsArray.get(tryingint).unwrap());
+			}
+			return Some(parentAsArray[tryingint].clone());
 		}
 		return None;
-	} else {
-		if (!parent.has_key(thisdir))
+	}
+	else if let JsonValue::Object(parentAsObject) = &parent
+	{
+		if (!parentAsObject.contains_key(thisdir))
 		{
 			return None;
-		} else if (i + 1 < splintedPath.len())
+		}
+		else if (i + 1 < splintedPath.len())
 		{
-			return get_recursive(splintedPath.clone(), i + 1, &parent[thisdir]);
+			return get_recursive(splintedPath.clone(), i + 1, parentAsObject.get(thisdir).unwrap());
 		}
 		
-		return Some(parent[thisdir].clone());
+		return Some(parentAsObject[thisdir].clone());
+	}
+	else
+	{
+		return None;
 	}
 }
 
@@ -180,32 +191,36 @@ fn set_recursive<'a>(splintedPath: Vec<String>, i: usize, parent: &'a mut JsonVa
 	}
 	let thisdir = thisdir.unwrap();
 	
-	if (parent.is_array())
-	{
-		if let Ok(tryingint) = thisdir.parse::<usize>()
-		{
-			if (tryingint < parent.len())
+	match parent {
+		JsonValue::Object(parentAsObject) => {
+			if (!parentAsObject.contains_key(thisdir))
 			{
-				return None;
-			}
-			else if (i + 1 < splintedPath.len())
-			{
-				return set_recursive(splintedPath.clone(), i + 1, &mut parent[tryingint]);
+				parentAsObject.set(thisdir,JsonValue::Object(JsonObject::new()));
 			}
 			
-			return Some(&mut parent[tryingint]);
+			if (i + 1 < splintedPath.len())
+			{
+				return set_recursive(splintedPath.clone(), i + 1, parentAsObject.get_mut(thisdir).unwrap());
+			}
+			return parentAsObject.get_mut(thisdir);
 		}
-		return None;
-	} else {
-		if (!parent.has_key(thisdir))
-		{
-			parent[thisdir] = JsonValue::new_object();
+		JsonValue::Array(parentAsArray) => {
+			if let Ok(tryingint) = thisdir.parse::<usize>()
+			{
+				if (tryingint < parentAsArray.len())
+				{
+					return None;
+				}
+				else if (i + 1 < splintedPath.len())
+				{
+					return set_recursive(splintedPath.clone(), i + 1, parentAsArray.get_mut(tryingint).unwrap());
+				}
+				
+				return parentAsArray.get_mut(tryingint);
+			}
+			return None;
 		}
-		
-		if (i + 1 < splintedPath.len())
-		{
-			return set_recursive(splintedPath.clone(), i + 1, &mut parent[thisdir]);
-		}
-		return Some(&mut parent[thisdir]);
+		_ => {}
 	}
+	return None;
 }

@@ -6,7 +6,7 @@ mod tests {
 	use std::fs::{create_dir, File};
 	use std::io::Write;
 	use std::path::Path;
-	use json::JsonValue;
+	use Hconfig::rusty_json::base::JsonValue;
 	use Hconfig::HConfigManager::HConfigManager;
 	
 	#[test]
@@ -40,8 +40,8 @@ mod tests {
 		assert_eq!(unwrap_or_not(config.get("test/get/mut")), "test is ok");
 	}
 	
-	fn unwrap_or_not(base: Option<JsonValue>) -> JsonValue
+	fn unwrap_or_not(base: Option<JsonValue>) -> String
 	{
-		return base.unwrap_or_else(||{JsonValue::String("not ok".to_string())});
+		return base.unwrap_or_else(||{JsonValue::String("not ok".to_string())}).parse().unwrap_or_else(|_|{"not ok".to_string()});
 	}
 }

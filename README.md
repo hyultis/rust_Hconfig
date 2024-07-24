@@ -3,7 +3,9 @@
 A file configuration manager library that simplify access of json configuration files from a dir.
 
 if a config file is not existing, it will be created. Any var is accessed by a path.
-Saving use a atomic method disallowing partial load from other app/process/etc
+Saving use atomic method disallowing partial load from other app/process/etc.
+
+the used rusty_json crate is re-exported via "Hconfig::rusty_json"
 
 ## Online Documentation
 
@@ -14,30 +16,24 @@ Saving use a atomic method disallowing partial load from other app/process/etc
 ```
 fn main()
 {
-    // configuration, the directory need to be existing or created before continuing
-    HConfigManager::HConfigManager::singleton().setConfPath("./config");
-    
-    // get a "config", the name "test" mean "./config/test.json"
-    let config = HConfigManager::HConfigManager::singleton().get("test").unwrap();
-    
-    // exemple of getting a var
-    let myvar: Option<JsonValue> = config.get("name");
-    let myvar: Option<JsonValue> = config.get("path/to/myvar");
-    let myvar: Option<JsonValue> = config.get("array/0/myvar");
-    
-    // updating a var with set() (note : update() if from HArcMut lib)
-    let config = HConfigManager::HConfigManager::singleton().get_mut("test").unwrap();
-    config.update(|thisconf|
-    {
-        thisconf.set("name", |tmp| {
-            *tmp = JsonValue::String("test is update".to_string());
-        });
-        
-        // save change into file
-        thisconf.save().expect("Cannot save updated config");
-    });
+    // configuration path, the directory need to be existing or created before continuing
+	HConfigManager::singleton().setConfPath("./config");
+	
+	// get a "config", the name "test" mean "./config/test.json"
+	let mut config = HConfigManager::singleton().get("example");
+	
+	// exemple of getting a var and getting a string (parse is from rusty_json)
+	let myVar: Option<JsonValue> = config.get("name");
+	let myString: String = config.get("path/to/myvar").unwrap().parse().unwrap();
+	
+	config.set("path/to/save",JsonValue::String("test is update".to_string()));
+	
+	// save config modification.
+	config.save();
 }
 ```
+
+you can also check tests.
 
 ## License
 
