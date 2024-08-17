@@ -1,6 +1,6 @@
 [package]
 name = "Hconfig"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["Hyultis <hyultis@use.startmail.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
@@ -13,7 +13,7 @@ description = "Json configuration file manager"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rusty_json = "2.0.1"
+rusty_json = "2.0.5"
 dashmap = "6.0.1"
 arc-swap = "1.7.1"
 thiserror = "1.0.63"

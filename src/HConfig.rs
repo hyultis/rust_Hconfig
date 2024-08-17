@@ -69,7 +69,7 @@ impl HConfig
 		let mut Rfile = File::create(&tmppath)
 			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
 		
-		let formatter = JsonFormatter::default();
+		let mut formatter = JsonFormatter::default();
 		Rfile.write_all(formatter.format(&self.datas).as_bytes())
 			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
 		

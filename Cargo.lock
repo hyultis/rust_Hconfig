@@ -4,7 +4,7 @@ version = 3
 
 [[package]]
 name = "Hconfig"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "arc-swap",
  "dashmap",
@@ -77,12 +77,6 @@ dependencies = [
  "equivalent",
  "hashbrown",
 ]
-
-[[package]]
-name = "jsonparser"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "924a34a53a6770bac6c4c6af2ee1bf50ad20e0d850d9458e9caff1901b0ff1cf"
 
 [[package]]
 name = "libc"
@@ -170,12 +164,11 @@ dependencies = [
 
 [[package]]
 name = "rusty_json"
-version = "2.0.1"
+version = "2.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5cc9abde04665c94eb2c0543305d7bc3ed301f92aed6e5ea9ecdf379b8a8955f"
+checksum = "239bf94af4e4bef6d901623ecbf67b69069f59e6ebd05a5bd54cc36dab45f2ca"
 dependencies = [
  "indexmap",
- "jsonparser",
  "nom",
  "thiserror",
 ]
