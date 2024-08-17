@@ -14,7 +14,6 @@ mod tests {
 	{
 		exampleFileWithData();
 		
-		HConfigManager::singleton().setConfPath("./config");
 		let mut config = HConfigManager::singleton().get("test");
 		assert_eq!(unwrap_or_not(config.get("testget")), "testget is ok");
 		assert_eq!(unwrap_or_not(config.get("testarray/1")), "testarray is ok");
@@ -32,8 +31,6 @@ mod tests {
 	{
 		exampleFileWithData();
 		
-		HConfigManager::singleton().setConfPath("./config");
-		
 		let mut config = HConfigManager::singleton().get("test");
 		config.set("testswrite", "test is ok".to_string());
 		config.save().expect("Cannot save updated config");
@@ -45,8 +42,6 @@ mod tests {
 	fn mutWriteAndSave()
 	{
 		exampleFileWithData();
-		
-		HConfigManager::singleton().setConfPath("./config");
 		
 		let mut config = HConfigManager::singleton().get("test");
 		if let Some(tmp) = config.get_mut("test/get/mut")
@@ -81,12 +76,14 @@ mod tests {
 				Err(e) => {panic!("Cannot create \"{configDir:?}\": {e}")}
 			}
 		}
+		
 		let testConfFile = Path::new("./config/test.json");
 		let mut Rfile = File::options().create(true).write(true).truncate(true).open(testConfFile).expect(format!("Cannot create : {testConfFile:?}").as_str());
-		//let mut Rfile = File::create(testConfFile).expect(format!("Cannot create : {testConfFile:?}").as_str());
 		Rfile.write_all(b"{\
 			\"testget\":\"testget is ok\",\
 			\"testarray\":[\"ignore\",\"testarray is ok\",\"ignore\"]
 		}").unwrap();
+		
+		HConfigManager::singleton().setConfPath("./config");
 	}
 }
