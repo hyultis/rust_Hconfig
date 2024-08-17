@@ -1,9 +1,8 @@
 use std::fs::{File, rename};
-use std::io::{Read, Write};
+use std::io::{Read};
 use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
-use rusty_json::base::{JsonObject, JsonValue};
-use rusty_json::extra::{JsonFormatter, JsonParser};
+use serde_json::Value as JsonValue;
 use crate::Errors;
 
 #[derive(Clone, Debug)]
@@ -37,7 +36,7 @@ impl HConfig
 		{
 			name,
 			path: path.clone(),
-			datas: JsonParser::parse(tmp.as_str()).unwrap_or(JsonValue::Object(JsonObject::new())),
+			datas: serde_json::from_str(tmp.as_str()).unwrap_or(JsonValue::Object(serde_json::Map::default())),
 		};
 		tmp.reload()?;
 		return Ok(tmp);
@@ -56,7 +55,7 @@ impl HConfig
 		{
 			tmp = "{}".to_string();
 		}
-		self.datas = JsonParser::parse(tmp.as_str())
+		self.datas = serde_json::from_str(tmp.as_str())
 			.map_err(|e| Errors::ConfigCannotConvertFileToJsonValue(self.name.clone(), self.path.clone(), e))?;
 		return Ok(());
 	}
@@ -66,12 +65,11 @@ impl HConfig
 	pub fn save(&self) -> Result<String, Errors>
 	{
 		let tmppath = format!("{}_{}", self.path, SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos().to_string());
-		let mut Rfile = File::create(&tmppath)
+		let Rfile = File::create(&tmppath)
 			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
-		
-		let mut formatter = JsonFormatter::default();
-		Rfile.write_all(formatter.format(&self.datas).as_bytes())
-			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
+			
+		serde_json::to_writer_pretty(Rfile,&self.datas)
+			.map_err(|e| Errors::ConfigCannotSaveFileSerde(self.name.clone(), self.path.clone(), e))?;
 		
 		rename(&tmppath, self.path.clone())
 			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
@@ -195,7 +193,7 @@ fn set_recursive<'a>(splintedPath: Vec<String>, i: usize, parent: &'a mut JsonVa
 		JsonValue::Object(parentAsObject) => {
 			if (!parentAsObject.contains_key(thisdir))
 			{
-				parentAsObject.set(thisdir,JsonValue::Object(JsonObject::new()));
+				parentAsObject.insert(thisdir.clone(),JsonValue::Object(serde_json::Map::new()));
 			}
 			
 			if (i + 1 < splintedPath.len())

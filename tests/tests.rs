@@ -6,7 +6,7 @@ mod tests {
 	use std::fs::{create_dir, File};
 	use std::io::{ErrorKind, Write};
 	use std::path::Path;
-	use Hconfig::rusty_json::base::JsonValue;
+	use serde_json::Value as JsonValue;
 	use Hconfig::HConfigManager::HConfigManager;
 	
 	#[test]
@@ -57,9 +57,9 @@ mod tests {
 	{
 		if let Some(jsonval) =  base
 		{
-			if let Ok(finalval) = jsonval.parse::<String>()
+			if let Some(finalval) = jsonval.as_str()
 			{
-				return finalval;
+				return finalval.to_string();
 			}
 		}
 		return "not ok".to_string();

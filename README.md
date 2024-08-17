@@ -5,7 +5,7 @@ A file configuration manager library that simplify access of json configuration 
 if a config file is not existing, it will be created. Any var is accessed by a path.
 Saving use atomic method disallowing partial load from other app/process/etc.
 
-the used rusty_json crate is re-exported via "Hconfig::rusty_json"
+the used serde_json crate is re-exported via "Hconfig::serde_json"
 
 ## Online Documentation
 
@@ -22,9 +22,9 @@ fn main()
 	// get a "config", the name "example" mean "./config/example.json"
 	let mut config = HConfigManager::singleton().get("example");
 	
-	// exemple of getting a var and getting a string (parse is from rusty_json)
-	let myVar: Option<JsonValue> = config.get("name");
-	let myString: String = config.get("path/to/myvar").unwrap().parse().unwrap();
+	// exemple of getting a var and getting a string (parse is from serde_json)
+	let myVar: Option<Value> = config.get("name");
+	let myString: String = config.get("path/to/myvar").unwrap().as_str().unwrap().to_string();
 	
 	config.set("path/to/save",JsonValue::String("test is update".to_string()));
 	

@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use rusty_json::base::{JsonValue};
+use serde_json::Value as JsonValue;
 
 pub struct Utils
 {
@@ -16,7 +16,7 @@ impl Utils
 		if let JsonValue::Object(tmp) = &base
 		{
 			tmp.iter().for_each(|(key,value)|{
-				let value: String = value.parse().unwrap_or("".to_string());
+				let value: String = value.as_str().unwrap_or("").to_string();
 				finalreturn.insert(key.clone(),value);
 			});
 			return finalreturn;
@@ -28,11 +28,7 @@ impl Utils
 			let mut i = 0;
 			for x in tmp.iter()
 			{
-				let mut result = "".to_string();
-				if let Ok(tmp) = x.parse()
-				{
-					result = tmp;
-				}
+				let result = x.as_str().unwrap_or("").to_string();
 				finalreturn.insert(i.to_string(),result);
 				i+=1;
 			}
