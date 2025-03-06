@@ -1,8 +1,8 @@
 use std::fs::{File, rename};
-use std::io::{Read};
+use std::io::Read;
 use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
-use serde_json::Value as JsonValue;
+use tinyjson::JsonValue;
 use crate::Errors;
 
 #[derive(Clone, Debug)]
@@ -36,7 +36,7 @@ impl HConfig
 		{
 			name,
 			path: path.clone(),
-			datas: serde_json::from_str(tmp.as_str()).unwrap_or(JsonValue::Object(serde_json::Map::default())),
+			datas: JsonValue::Object(Default::default()),
 		};
 		tmp.reload()?;
 		return Ok(tmp);
@@ -55,8 +55,10 @@ impl HConfig
 		{
 			tmp = "{}".to_string();
 		}
-		self.datas = serde_json::from_str(tmp.as_str())
+
+		self.datas = tmp.parse()
 			.map_err(|e| Errors::ConfigCannotConvertFileToJsonValue(self.name.clone(), self.path.clone(), e))?;
+
 		return Ok(());
 	}
 	
@@ -64,16 +66,16 @@ impl HConfig
 	/// save content into file
 	pub fn save(&self) -> Result<String, Errors>
 	{
-		let tmppath = format!("{}_{}", self.path, SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos().to_string());
-		let Rfile = File::create(&tmppath)
+		let tmp_path = format!("{}_{}", self.path, SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos().to_string());
+		let mut tmp_file = File::create(&tmp_path)
 			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
-			
-		serde_json::to_writer_pretty(Rfile,&self.datas)
-			.map_err(|e| Errors::ConfigCannotSaveFileSerde(self.name.clone(), self.path.clone(), e))?;
+
+		self.datas.format_to(&mut tmp_file)
+			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
 		
-		rename(&tmppath, self.path.clone())
+		rename(&tmp_path, self.path.clone())
 			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
-		return Ok(tmppath);
+		return Ok(tmp_path);
 	}
 	
 	/// get content from a path (unsigned int for array)
@@ -133,7 +135,14 @@ impl HConfig
 impl fmt::Display for HConfig {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
-		write!(f, "{}", self.datas)
+		match &self.datas {
+			JsonValue::Number(x) => write!(f, "{}", x),
+			JsonValue::Boolean(x) => write!(f, "{}", x),
+			JsonValue::String(x) => write!(f, "{}", x),
+			JsonValue::Null => write!(f, "null"),
+			JsonValue::Array(x) => write!(f, "{:#?}", x),
+			JsonValue::Object(x) => write!(f, "{:#?}", x),
+		}
 	}
 }
 
@@ -193,7 +202,7 @@ fn set_recursive<'a>(splintedPath: Vec<String>, i: usize, parent: &'a mut JsonVa
 		JsonValue::Object(parentAsObject) => {
 			if (!parentAsObject.contains_key(thisdir))
 			{
-				parentAsObject.insert(thisdir.clone(),JsonValue::Object(serde_json::Map::new()));
+				parentAsObject.insert(thisdir.clone(),JsonValue::Object(Default::default()));
 			}
 			
 			if (i + 1 < splintedPath.len())

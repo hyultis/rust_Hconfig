@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use serde_json::Value as JsonValue;
+use tinyjson::JsonValue;
 
 pub struct Utils
 {
@@ -16,7 +16,7 @@ impl Utils
 		if let JsonValue::Object(tmp) = &base
 		{
 			tmp.iter().for_each(|(key,value)|{
-				let value: String = value.as_str().unwrap_or("").to_string();
+				let value: String = value.clone().try_into().unwrap();
 				finalreturn.insert(key.clone(),value);
 			});
 			return finalreturn;
@@ -28,7 +28,7 @@ impl Utils
 			let mut i = 0;
 			for x in tmp.iter()
 			{
-				let result = x.as_str().unwrap_or("").to_string();
+				let result: String = x.clone().try_into().unwrap();
 				finalreturn.insert(i.to_string(),result);
 				i+=1;
 			}

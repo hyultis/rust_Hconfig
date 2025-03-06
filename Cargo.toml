@@ -1,8 +1,8 @@
 [package]
 name = "Hconfig"
-version = "1.1.0"
+version = "2.0.0"
 authors = ["Hyultis <hyultis@gmail.com>"]
-edition = "2021"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/hyultis/rust_Hconfig"
@@ -13,7 +13,7 @@ description = "Json configuration file manager"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde_json = "1.0"
-dashmap = "6.0"
+tinyjson = "2.5"
+dashmap = "7.0.0-rc2"
 arc-swap = "1.7"
-thiserror = "1.0"
+thiserror = "2.0"

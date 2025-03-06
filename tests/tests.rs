@@ -6,7 +6,7 @@ mod tests {
 	use std::fs::{create_dir, File};
 	use std::io::{ErrorKind, Write};
 	use std::path::Path;
-	use serde_json::Value as JsonValue;
+	use tinyjson::JsonValue;
 	use Hconfig::HConfigManager::HConfigManager;
 	
 	#[test]
@@ -57,9 +57,9 @@ mod tests {
 	{
 		if let Some(jsonval) =  base
 		{
-			if let Some(finalval) = jsonval.as_str()
+			if let Ok(finalval) = jsonval.try_into()
 			{
-				return finalval.to_string();
+				return finalval;
 			}
 		}
 		return "not ok".to_string();
