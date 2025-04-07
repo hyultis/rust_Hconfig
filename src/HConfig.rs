@@ -60,6 +60,12 @@ impl HConfig
 		return self.wrapper.root_get();
 	}
 
+	/// get mutable root node
+	pub fn root_get_mut(&mut self) -> &JsonValue
+	{
+		return self.wrapper.root_get_mut();
+	}
+
 	/// get content from a path (unsigned int for array)
 	pub fn value_get(&self, path: &str) -> Option<JsonValue>
 	{
