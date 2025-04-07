@@ -26,6 +26,9 @@ pub trait IOwrapper: Display + Debug + Sync + Send {
 	/// get root node
 	fn root_get(&self) -> &JsonValue;
 
+	/// get root node
+	fn root_get_mut (&mut self) -> &mut JsonValue;
+
 
 	/// get content from a path (unsigned int for array)
 	fn value_get(&self, path: String) -> Option<JsonValue>;

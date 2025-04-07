@@ -98,6 +98,12 @@ impl IOwrapper for WrapperJson
 	{
 		return &self.datas;
 	}
+
+	/// get mutable root node
+	fn root_get_mut(&mut self) -> &mut JsonValue
+	{
+		return &mut self.datas;
+	}
 	
 	/// get content from a path (unsigned int for array)
 	fn value_get(&self, path: String) -> Option<JsonValue>
