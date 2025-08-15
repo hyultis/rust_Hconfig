@@ -46,7 +46,7 @@ impl WrapperJson
 
 impl IOwrapper for WrapperJson
 {
-	/// create new instance and autoload content
+	/// create a new instance and autoload content
 	fn init(name: &String, path: &String) -> Result<WrapperJson, Errors>
 	{
 		let path = format!("{}.{}", path, "json");
@@ -60,7 +60,7 @@ impl IOwrapper for WrapperJson
 		return Ok(tmp);
 	}
 
-	/// reload content from file
+	/// reload content from a file
 	fn file_load(&mut self) -> Result<(), Errors>
 	{
 		self.datas = self.file_content_get()?.parse()
@@ -70,7 +70,7 @@ impl IOwrapper for WrapperJson
 	}
 	
 	
-	/// save content into file
+	/// save content into a file
 	fn file_save(&self) -> Result<(), Errors>
 	{
 		let (mut tmp_file, path) = self.file_get(format!("_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos().to_string()))?;
@@ -88,7 +88,7 @@ impl IOwrapper for WrapperJson
 		return "json";
 	}
 
-	/// get config file path
+	/// get file path
 	fn file_path(&self) -> &String {
 		&self.path
 	}
@@ -105,14 +105,14 @@ impl IOwrapper for WrapperJson
 		return &mut self.datas;
 	}
 	
-	/// get content from a path (unsigned int for array)
+	/// get content from a path (use an unsigned int for an array)
 	fn value_get(&self, path: String) -> Option<JsonValue>
 	{
 		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
 		return get_recursive(splitedPath, 0, &self.datas);
 	}
 
-	/// get content from a path (unsigned int for array), or SET default and return it instead
+	/// get content from a path (use an unsigned int for an array), or SET default and return it instead
 	fn value_get_or_set(&mut self, path: String, default: JsonValue) -> JsonValue
 	{
 		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
@@ -128,7 +128,7 @@ impl IOwrapper for WrapperJson
 		return value;
 	}
 
-	/// set content to a path (unsigned int for array)
+	/// set content to a path (use an unsigned int for an array)
 	fn value_get_mut<'a,'b>(&'b mut self, path: String) -> Option<&'a mut JsonValue>
 	where 'b: 'a
 	{
@@ -136,7 +136,7 @@ impl IOwrapper for WrapperJson
 		set_recursive(splitedPath, 0, &mut self.datas)
 	}
 	
-	/// set content to a path (unsigned int for array)
+	/// set content to a path (use an unsigned int for an array)
 	fn value_set(&mut self, path: String, newval: JsonValue)
 	{
 		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();

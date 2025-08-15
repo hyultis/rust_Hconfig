@@ -35,6 +35,7 @@ mod tests {
 		let mut config = HConfigManager::singleton().get("test").expect("Cannot get config");
 		config.value_set("testswrite", "test is ok".to_string());
 		config.file_save().expect("Cannot save updated config");
+		config.file_load().expect("Cannot load updated config");
 		assert_eq!(unwrap_or_not(config.value_get("testswrite")), "test is ok");
 	}
 	

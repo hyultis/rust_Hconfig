@@ -16,6 +16,8 @@ use tinyjson::JsonParseError;
 #[derive(Error, Debug)]
 pub enum Errors
 {
+	#[error("config {0} error : {1}")]
+	AnyError(String, String),
 	#[error("config path must be set via 'setConfPath'")]
 	ConfigNotSet,
 	#[error("config {0} cannot create the file {1} : {2}")]

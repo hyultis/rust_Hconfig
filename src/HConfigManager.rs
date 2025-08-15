@@ -44,15 +44,14 @@ impl HConfigManager
 	pub fn create<T: IOwrapper>(&self, name: impl Into<String>) -> Result<(), Errors>
 	{
 		let name = name.into();
-		let newvalue = HConfig::new::<WrapperJson>(name.to_string(), self.confPath_get())
-			.expect(format!("Error HConfigManager on '{}'",&name).as_str());
+		let newvalue = HConfig::new::<WrapperJson>(name.to_string(), self.confPath_get())?;
 
 		self.loadedConfs.insert(name.clone(), newvalue);
 		return Ok(());
 	}
 
 	/// get config
-	pub fn get(&self, name: impl Into<String>) -> Option<RefMut<String, HConfig>>
+	pub fn get(&self, name: impl Into<String>) -> Option<RefMut<'_,String, HConfig>>
 	{
 		let name = name.into();
 		return self.loadedConfs.get_mut(&name);

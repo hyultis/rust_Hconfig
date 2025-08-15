@@ -13,7 +13,7 @@ pub struct HConfig
 
 impl HConfig
 {
-	/// create new instance and autoload content
+	/// create a new instance and autoload content
 	pub fn new<T: IOwrapper + 'static>(name: String, mut path: String) -> Result<HConfig, Errors>
 	{
 		if(path.ends_with("/"))
@@ -31,13 +31,13 @@ impl HConfig
 		});
 	}
 
-	/// reload content from file
+	/// reload content from the file
 	pub fn file_load(&mut self) -> Result<(), Errors>
 	{
 		return self.wrapper.file_load();
 	}
 
-	/// save content into file
+	/// save content into the file
 	pub fn file_save(&self) -> Result<(), Errors>
 	{
 		return self.wrapper.file_save();
@@ -49,7 +49,7 @@ impl HConfig
 		return self.wrapper.file_ext();
 	}
 
-	/// get config file path
+	/// get file path
 	pub fn file_path(&self) -> &String {
 		return &self.wrapper.file_path();
 	}
@@ -66,26 +66,26 @@ impl HConfig
 		return self.wrapper.root_get_mut();
 	}
 
-	/// get content from a path (unsigned int for array)
+	/// get content from a path (use an unsigned int for an array)
 	pub fn value_get(&self, path: &str) -> Option<JsonValue>
 	{
 		return self.wrapper.value_get(path.into());
 	}
 
-	/// get content from a path (unsigned int for array), or SET default and return it instead
+	/// get content from a path (use an unsigned int for an array), or SET default and return it instead
 	pub fn value_get_or_set(&mut self, path: &str, default: impl Into<JsonValue>) -> JsonValue
 	{
 		return self.wrapper.value_get_or_set(path.into(),default.into());
 	}
 
-	/// set content to a path (unsigned int for array)
+	/// set content to a path (use an unsigned int for an array)
 	pub fn value_get_mut<'a,'b>(&'b mut self, path: impl Into<String>) -> Option<&'a mut JsonValue>
 	where 'b: 'a
 	{
 		return self.wrapper.value_get_mut(path.into());
 	}
 
-	/// set content to a path (unsigned int for array)
+	/// set content to a path (use an unsigned int for an array)
 	pub fn value_set(&mut self, path: &str, newval: impl Into<JsonValue>)
 	{
 		return self.wrapper.value_set(path.into(),newval.into());
