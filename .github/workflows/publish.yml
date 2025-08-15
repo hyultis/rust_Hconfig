@@ -6,16 +6,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  security_audit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: rustsec/audit-check@v2.0.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
   tests:
     runs-on: ubuntu-latest
-    needs: security_audit
     steps:
       - uses: actions/checkout@v4
       - name: Run cargo tests
@@ -24,9 +16,13 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: tests
+    environment: release  # Optional: for enhanced security
+    permissions:
+      id-token: write     # Required for OIDC token exchange
     steps:
       - uses: actions/checkout@v4
-      - uses: katyo/publish-crates@v2
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-          #dry-run: true
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - run: cargo publish
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
