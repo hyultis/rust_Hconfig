@@ -1,233 +1,100 @@
-use std::fs::{File, rename};
-use std::io::Read;
 use std::fmt;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tinyjson::JsonValue;
 use crate::Errors;
+use crate::IO::IOwrapper;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct HConfig
 {
 	name: String,
-	path: String,
-	datas: JsonValue,
+	constructed_fullpath: String,
+	wrapper: Box<dyn IOwrapper + 'static>,
 }
 
 impl HConfig
 {
-	/// create new instance and autoload content
-	pub fn new(name: String, path: String) -> Result<HConfig, Errors>
+	/// create a new instance and autoload content
+	pub fn new<T: IOwrapper + 'static>(name: String, mut path: String) -> Result<HConfig, Errors>
 	{
-		let mut file;
-		if let Ok(tmp) = File::open(&path)
+		if(path.ends_with("/"))
 		{
-			file = tmp;
-		} else {
-			file = File::create(&path).map_err(|err| Errors::ConfigCannotCreateFile(name.clone(), path.clone(), err))?;
+			path.pop();
 		}
-		
-		let mut tmp = String::new();
-		if (file.read_to_string(&mut tmp).is_err() || tmp.is_empty())
-		{
-			tmp = "{}".to_string();
-		}
-		
-		let mut tmp = HConfig
-		{
+
+		let fullpath = format!("{}/{}", path, name);
+		let wrapper = T::init(&name, &fullpath)?;
+
+		return Ok(HConfig{
 			name,
-			path: path.clone(),
-			datas: JsonValue::Object(Default::default()),
-		};
-		tmp.reload()?;
-		return Ok(tmp);
+			constructed_fullpath: fullpath,
+			wrapper: Box::new(wrapper),
+		});
 	}
-	
-	/**
-	 * reload content from file
-	 */
-	pub fn reload(&mut self) -> Result<(), Errors>
-	{
-		//println!("load config file path : {}",self.path);
-		let mut file = File::open(self.path.clone())
-			.map_err(|e| Errors::ConfigCannotCreateFile(self.name.clone(), self.path.clone(), e))?;
-		let mut tmp = String::new();
-		if (file.read_to_string(&mut tmp).is_err() || tmp.is_empty())
-		{
-			tmp = "{}".to_string();
-		}
 
-		self.datas = tmp.parse()
-			.map_err(|e| Errors::ConfigCannotConvertFileToJsonValue(self.name.clone(), self.path.clone(), e))?;
+	/// reload content from the file
+	pub fn file_load(&mut self) -> Result<(), Errors>
+	{
+		return self.wrapper.file_load();
+	}
 
-		return Ok(());
-	}
-	
-	
-	/// save content into file
-	pub fn save(&self) -> Result<String, Errors>
+	/// save content into the file
+	pub fn file_save(&self) -> Result<(), Errors>
 	{
-		let tmp_path = format!("{}_{}", self.path, SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos().to_string());
-		let mut tmp_file = File::create(&tmp_path)
-			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
+		return self.wrapper.file_save();
+	}
 
-		self.datas.format_to(&mut tmp_file)
-			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
-		
-		rename(&tmp_path, self.path.clone())
-			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
-		return Ok(tmp_path);
-	}
-	
-	/// get content from a path (unsigned int for array)
-	pub fn get(&self, path: impl Into<String>) -> Option<JsonValue>
+	/// Get config extension
+	pub fn file_ext<'a>(&self) -> &'a str
 	{
-		let path = path.into();
-		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
-		return get_recursive(splitedPath, 0, &self.datas);
+		return self.wrapper.file_ext();
 	}
-	
-	/// get content from a path (unsigned int for array), or SET default and return it instead
-	pub fn getOrSetDefault(&mut self, path: impl Into<String>, default: JsonValue) -> JsonValue
-	{
-		let path = path.into();
-		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
-		
-		return match get_recursive(splitedPath.clone(), 0, &self.datas) {
-			None => {
-				if let Some(defaultset) = set_recursive(splitedPath,0,&mut self.datas)
-				{
-					*defaultset = default.clone();
-				}
-				default
-			}
-			Some(value) => value
-		};
+
+	/// get file path
+	pub fn file_path(&self) -> &String {
+		return &self.wrapper.file_path();
 	}
-	
+
 	/// get root node
-	pub fn getRoot(&self) -> &JsonValue
+	pub fn root_get(&self) -> &JsonValue
 	{
-		return &self.datas;
+		return self.wrapper.root_get();
 	}
-	
-	/// set content to a path (unsigned int for array)
-	pub fn set<T>(&mut self, path: impl Into<String>, newval: T)
-		where T: Into<JsonValue>
+
+	/// get mutable root node
+	pub fn root_get_mut(&mut self) -> &JsonValue
 	{
-		let path = path.into();
-		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
-		if let Some(oldvalue) = set_recursive(splitedPath, 0, &mut self.datas)
-		{
-			*oldvalue = newval.into();
-		}
+		return self.wrapper.root_get_mut();
 	}
-	
-	/// set content to a path (unsigned int for array)
-	pub fn get_mut<'a,'b>(&'b mut self, path: impl Into<String>) -> Option<&'a mut JsonValue>
-		where 'b: 'a
+
+	/// get content from a path (use an unsigned int for an array)
+	pub fn value_get(&self, path: &str) -> Option<JsonValue>
 	{
-		let path = path.into();
-		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
-		set_recursive(splitedPath, 0, &mut self.datas)
+		return self.wrapper.value_get(path.into());
+	}
+
+	/// get content from a path (use an unsigned int for an array), or SET default and return it instead
+	pub fn value_get_or_set(&mut self, path: &str, default: impl Into<JsonValue>) -> JsonValue
+	{
+		return self.wrapper.value_get_or_set(path.into(),default.into());
+	}
+
+	/// set content to a path (use an unsigned int for an array)
+	pub fn value_get_mut<'a,'b>(&'b mut self, path: impl Into<String>) -> Option<&'a mut JsonValue>
+	where 'b: 'a
+	{
+		return self.wrapper.value_get_mut(path.into());
+	}
+
+	/// set content to a path (use an unsigned int for an array)
+	pub fn value_set(&mut self, path: &str, newval: impl Into<JsonValue>)
+	{
+		return self.wrapper.value_set(path.into(),newval.into());
 	}
 }
 
 impl fmt::Display for HConfig {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
-		match &self.datas {
-			JsonValue::Number(x) => write!(f, "{}", x),
-			JsonValue::Boolean(x) => write!(f, "{}", x),
-			JsonValue::String(x) => write!(f, "{}", x),
-			JsonValue::Null => write!(f, "null"),
-			JsonValue::Array(x) => write!(f, "{:#?}", x),
-			JsonValue::Object(x) => write!(f, "{:#?}", x),
-		}
+		return write!(f, "{}", self.wrapper);
 	}
-}
-
-fn get_recursive(splintedPath: Vec<String>, i: usize, parent: &JsonValue) -> Option<JsonValue>
-{
-	let thisdir = splintedPath.get(i);
-	if(thisdir.is_none())
-	{
-		return None;
-	}
-	let thisdir = thisdir.unwrap();
-	if let JsonValue::Array(parentAsArray) = &parent
-	{
-		if let Ok(tryingint) = thisdir.parse::<usize>()
-		{
-			if (tryingint >= parentAsArray.len())
-			{
-				return None;
-			}
-			else if (i + 1 < splintedPath.len())
-			{
-				return get_recursive(splintedPath.clone(), i + 1, parentAsArray.get(tryingint).unwrap());
-			}
-			return Some(parentAsArray[tryingint].clone());
-		}
-		return None;
-	}
-	else if let JsonValue::Object(parentAsObject) = &parent
-	{
-		if (!parentAsObject.contains_key(thisdir))
-		{
-			return None;
-		}
-		else if (i + 1 < splintedPath.len())
-		{
-			return get_recursive(splintedPath.clone(), i + 1, parentAsObject.get(thisdir).unwrap());
-		}
-		
-		return Some(parentAsObject[thisdir].clone());
-	}
-	else
-	{
-		return None;
-	}
-}
-
-fn set_recursive<'a>(splintedPath: Vec<String>, i: usize, parent: &'a mut JsonValue) -> Option<&'a mut JsonValue>
-{
-	let thisdir = splintedPath.get(i);
-	if(thisdir.is_none())
-	{
-		return None;
-	}
-	let thisdir = thisdir.unwrap();
-	
-	match parent {
-		JsonValue::Object(parentAsObject) => {
-			if (!parentAsObject.contains_key(thisdir))
-			{
-				parentAsObject.insert(thisdir.clone(),JsonValue::Object(Default::default()));
-			}
-			
-			if (i + 1 < splintedPath.len())
-			{
-				return set_recursive(splintedPath.clone(), i + 1, parentAsObject.get_mut(thisdir).unwrap());
-			}
-			return parentAsObject.get_mut(thisdir);
-		}
-		JsonValue::Array(parentAsArray) => {
-			if let Ok(tryingint) = thisdir.parse::<usize>()
-			{
-				if (tryingint < parentAsArray.len())
-				{
-					return None;
-				}
-				else if (i + 1 < splintedPath.len())
-				{
-					return set_recursive(splintedPath.clone(), i + 1, parentAsArray.get_mut(tryingint).unwrap());
-				}
-				
-				return parentAsArray.get_mut(tryingint);
-			}
-			return None;
-		}
-		_ => {}
-	}
-	return None;
 }

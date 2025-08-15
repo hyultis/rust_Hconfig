@@ -8,48 +8,51 @@ mod tests {
 	use std::path::Path;
 	use tinyjson::JsonValue;
 	use Hconfig::HConfigManager::HConfigManager;
-	
+	use Hconfig::IO::json::WrapperJson;
+
 	#[test]
 	fn simpleRead()
 	{
-		exampleFileWithData();
+		setupTestsJson();
 		
-		let mut config = HConfigManager::singleton().get("test");
-		assert_eq!(unwrap_or_not(config.get("testget")), "testget is ok");
-		assert_eq!(unwrap_or_not(config.get("testarray/1")), "testarray is ok");
+		let mut config = HConfigManager::singleton().get("test").expect("Cannot get config");
+		assert_eq!(unwrap_or_not(config.value_get("testget")), "testget is ok");
+		assert_eq!(unwrap_or_not(config.value_get("testarray/1")), "testarray is ok");
 		
-		if let Some(tmp) = config.get_mut("test/get/mut")
+		if let Some(tmp) = config.value_get_mut("test/get/mut")
 		{
 			*tmp = JsonValue::String("test is ok".to_string());
 		}
-		config.save().expect("Cannot save updated config");
-		assert_eq!(unwrap_or_not(config.get("test/get/mut")), "test is ok");
+		config.file_save().expect("Cannot save updated config");
+		assert_eq!(unwrap_or_not(config.value_get("test/get/mut")), "test is ok");
 	}
 	
 	#[test]
 	fn simpleWriteAndSave()
 	{
-		exampleFileWithData();
-		
-		let mut config = HConfigManager::singleton().get("test");
-		config.set("testswrite", "test is ok".to_string());
-		config.save().expect("Cannot save updated config");
-		assert_eq!(unwrap_or_not(config.get("testswrite")), "test is ok");
+		setupTestsJson();
+
+		let mut config = HConfigManager::singleton().get("test").expect("Cannot get config");
+		config.value_set("testswrite", "test is ok".to_string());
+		config.file_save().expect("Cannot save updated config");
+		config.file_load().expect("Cannot load updated config");
+		assert_eq!(unwrap_or_not(config.value_get("testswrite")), "test is ok");
 	}
 	
 	
 	#[test]
 	fn mutWriteAndSave()
 	{
-		exampleFileWithData();
-		
-		let mut config = HConfigManager::singleton().get("test");
-		if let Some(tmp) = config.get_mut("test/get/mut")
+		setupTestsJson();
+
+		let mut config = HConfigManager::singleton().get("test").expect("Cannot get config");
+		println!("file path {}",config.file_path());
+		if let Some(tmp) = config.value_get_mut("test/get/mut")
 		{
 			*tmp = JsonValue::String("testmut is ok".to_string());
 		}
-		config.save().expect("Cannot save updated config");
-		assert_eq!(unwrap_or_not(config.get("test/get/mut")), "testmut is ok");
+		config.file_save().expect("Cannot save updated config");
+		assert_eq!(unwrap_or_not(config.value_get("test/get/mut")), "testmut is ok");
 	}
 	
 	// simply return a "not ok" is something is wrong
@@ -65,7 +68,7 @@ mod tests {
 		return "not ok".to_string();
 	}
 	
-	fn exampleFileWithData()
+	fn setupTestsJson()
 	{
 		let configDir = Path::new("./config");
 		if (!configDir.exists())
@@ -78,12 +81,13 @@ mod tests {
 		}
 		
 		let testConfFile = Path::new("./config/test.json");
-		let mut Rfile = File::options().create(true).write(true).truncate(true).open(testConfFile).expect(format!("Cannot create : {testConfFile:?}").as_str());
-		Rfile.write_all(b"{\
-			\"testget\":\"testget is ok\",\
-			\"testarray\":[\"ignore\",\"testarray is ok\",\"ignore\"]
-		}").unwrap();
+		let mut Rfile = File::options().create(true).write(true).truncate(true).open(testConfFile).expect(format!("Cannot create default test file : {testConfFile:?}").as_str());
+		Rfile.write_all(r#"{
+			"testget":"testget is ok",
+			"testarray":["ignore","testarray is ok","ignore"]
+		}"#.as_bytes()).unwrap();
 		
-		HConfigManager::singleton().setConfPath("./config");
+		HConfigManager::singleton().confPath_set(configDir.to_str().unwrap().to_string());
+		HConfigManager::singleton().create::<WrapperJson>("test").expect("Cannot create test HConfig");
 	}
 }

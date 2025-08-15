@@ -1,9 +1,11 @@
 use std::sync::{Arc, OnceLock};
 use arc_swap::ArcSwap;
 use dashmap::DashMap;
+use dashmap::mapref::one::RefMut;
+use crate::Errors;
 use crate::HConfig::HConfig;
-use crate::guard::Guard;
-
+use crate::IO::IOwrapper;
+use crate::IO::json::WrapperJson;
 
 pub struct HConfigManager
 {
@@ -24,36 +26,34 @@ impl HConfigManager
 			}
 		})
 	}
-	
-	pub fn setConfPath(&self, path: impl Into<String>)
+
+	/// set path where fetch and storing configs
+	pub fn confPath_set(&self, path: impl Into<String>)
 	{
 		let path = path.into();
 		self.confpath.swap(Arc::new(path));
 	}
-	
-	pub fn getConfPath(&self) -> String
+
+	/// retrieve configs path
+	pub fn confPath_get(&self) -> String
 	{
 		return (&**self.confpath.load()).clone();
 	}
-	
-	pub fn get(&self, name: impl Into<String>) -> Guard<'_>
+
+	/// init
+	pub fn create<T: IOwrapper>(&self, name: impl Into<String>) -> Result<(), Errors>
 	{
 		let name = name.into();
-		let containkey = {self.loadedConfs.contains_key(&name)};
-		if !containkey
-		{
-			let mut basepath = self.getConfPath();
-			basepath.push_str("/");
-			basepath.push_str(&name);
-			basepath.push_str(".json");
-			let newvalue = HConfig::new(name.to_string(), basepath).expect(format!("Error HConfigManager on '{}'",&name).as_str());
-			
-			self.loadedConfs.insert(name.clone(), newvalue);
-		}
-		
-		return Guard{
-			context: self,
-			guarded: self.loadedConfs.get_mut(&name).expect(format!("Error HConfigManager on '{}' : this error is not normally possible",&name).as_str()),
-		};
+		let newvalue = HConfig::new::<WrapperJson>(name.to_string(), self.confPath_get())?;
+
+		self.loadedConfs.insert(name.clone(), newvalue);
+		return Ok(());
+	}
+
+	/// get config
+	pub fn get(&self, name: impl Into<String>) -> Option<RefMut<'_,String, HConfig>>
+	{
+		let name = name.into();
+		return self.loadedConfs.get_mut(&name);
 	}
 }

@@ -1,11 +1,11 @@
 # HConfig
 
-A file configuration manager library that simplify access of json configuration files from a dir.
+A file configuration manager library that simplifies access to JSON (and other formats) configuration files from a directory.
 
-if a config file is not existing, it will be created. Any var is accessed by a path.
-Saving use atomic method disallowing partial load from other app/process/etc.
+The key feature of this library is that any variable can be accessed using a path.  
+Saving is performed atomically, preventing partial reads from other applications/processes/etc. (saving to a temporary file before renaming).
 
-the used serde_json crate is re-exported via "Hconfig::serde_json"
+The `tinyjson` crate is re-exported via `HConfig::tinyjson`.
 
 ## Online Documentation
 
@@ -13,27 +13,30 @@ the used serde_json crate is re-exported via "Hconfig::serde_json"
 
 ## Example
 
-```
-fn main()
-{
-    // configuration path, the directory need to be existing or created before continuing
-	HConfigManager::singleton().setConfPath("./config");
-	
-	// get a "config", the name "example" mean "./config/example.json"
-	let mut config = HConfigManager::singleton().get("example");
-	
-	// exemple of getting a var and getting a string (parse is from serde_json)
-	let myVar: Option<Value> = config.get("name");
-	let myString: String = config.get("path/to/myvar").unwrap().as_str().unwrap().to_string();
-	
-	config.set("path/to/save",JsonValue::String("test is update".to_string()));
-	
-	// save config modification.
-	config.save();
+```rust
+fn main() {
+    // Configuration path: the directory must exist or be created before proceeding
+    HConfigManager::singleton().setConfPath("./config");
+    
+    // Initialize a new configuration "example" with WrapperJson; it will be stored as "./config/example.json"
+    HConfigManager::singleton().create::<WrapperJson>("example").expect("Cannot create HConfig");
+    
+    // Retrieve a configuration: the name "example" corresponds to "./config/example.json"
+    let mut config = HConfigManager::singleton().get("example").expect("Cannot get HConfig");
+    
+    // Example of retrieving a variable and parsing it as a string (parsing is done via tinyjson)
+    let my_var: Option<JsonValue> = config.value_get("testget");
+    let my_string: String = config.value_get("testget").unwrap().try_into().unwrap();
+
+	// Set "path/to/save" to "test is updated"
+    config.value_set("path/to/save", "test is updated".to_string());
+    
+    // Save configuration changes
+    config.save();
 }
 ```
 
-you can also check tests.
+You can also check the tests.
 
 ## License
 

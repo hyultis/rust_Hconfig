@@ -6,7 +6,7 @@
 pub mod HConfig;
 pub mod HConfigManager;
 pub mod Utils;
-pub mod guard;
+pub mod IO;
 
 pub extern crate tinyjson;
 
@@ -16,10 +16,14 @@ use tinyjson::JsonParseError;
 #[derive(Error, Debug)]
 pub enum Errors
 {
+	#[error("config {0} error : {1}")]
+	AnyError(String, String),
 	#[error("config path must be set via 'setConfPath'")]
 	ConfigNotSet,
 	#[error("config {0} cannot create the file {1} : {2}")]
 	ConfigCannotCreateFile(String, String, #[source] std::io::Error),
+	#[error("config {0} cannot load the file {1} : {2}")]
+	ConfigCannotLoadFile(String, String, #[source] std::io::Error),
 	#[error("config {0} cannot convert the file content {1} into json : {2}")]
 	ConfigCannotConvertFileToJsonValue(String, String, #[source] JsonParseError),
 	#[error("config {0} cannot save the file content {1} : {2}")]
