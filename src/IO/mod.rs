@@ -1,14 +1,13 @@
 use std::fmt::{Debug, Display};
 use tinyjson::JsonValue;
 use crate::Errors;
-use crate::IO::json::WrapperJson;
 
 pub mod json;
 
 pub trait IOwrapper: Display + Debug + Sync + Send {
 
 	/// init instance and autoload content
-	fn init(name: &String, path: &String) -> Result<WrapperJson, Errors> where Self: Sized;
+	fn init(name: &String, path: &String) -> Result<Self, Errors> where Self: Sized;
 
 	/// reload content from a file (called one time by init if file exist)
 	fn file_load(&mut self) -> Result<(), Errors>;
