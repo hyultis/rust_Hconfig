@@ -85,6 +85,12 @@ impl HConfig
 		return self.wrapper.value_get_mut(path.into());
 	}
 
+	/// remove content from a path (use an unsigned int for an array)
+	pub fn value_remove(&mut self, path: &str) -> bool
+	{
+		return self.wrapper.value_remove(path.into());
+	}
+
 	/// set content to a path (use an unsigned int for an array)
 	pub fn value_set(&mut self, path: &str, newval: impl Into<JsonValue>)
 	{

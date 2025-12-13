@@ -38,6 +38,29 @@ mod tests {
 		config.file_load().expect("Cannot load updated config");
 		assert_eq!(unwrap_or_not(config.value_get("testswrite")), "test is ok");
 	}
+
+
+	#[test]
+	fn simpleRemove()
+	{
+		setupTestsJson();
+
+		let mut config = HConfigManager::singleton().get("test").expect("Cannot get config");
+
+		// object test
+		config.value_set("testswrite", "test is ko".to_string());
+		config.value_remove("testswrite");
+		assert_eq!(config.value_get("testswrite"), None);
+
+		// array test
+		config.value_remove("testarray/1");
+		let mut len = 0;
+		if let Some(JsonValue::Array(values)) = config.value_get("testarray")
+		{
+			len=values.len();
+		}
+		assert_eq!(len, 2);
+	}
 	
 	
 	#[test]
@@ -46,7 +69,7 @@ mod tests {
 		setupTestsJson();
 
 		let mut config = HConfigManager::singleton().get("test").expect("Cannot get config");
-		println!("file path {}",config.file_path());
+		//println!("file path {}",config.file_path());
 		if let Some(tmp) = config.value_get_mut("test/get/mut")
 		{
 			*tmp = JsonValue::String("testmut is ok".to_string());

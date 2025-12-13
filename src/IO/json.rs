@@ -133,9 +133,40 @@ impl IOwrapper for WrapperJson
 	where 'b: 'a
 	{
 		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
-		set_recursive(splitedPath, 0, &mut self.datas)
+		return set_recursive(splitedPath, 0, &mut self.datas);
 	}
-	
+
+	fn value_remove(&mut self, path: &str) -> bool {
+		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
+
+		let Some((last, parentPath)) = splitedPath.split_last() else {return false;};
+
+		let parent = match parentPath.is_empty() {
+			true => &mut self.datas,
+			false => {
+				let Some(parent) = set_recursive(parentPath.to_vec(), 0, &mut self.datas) else {return false;};
+				parent
+			}
+		};
+
+		match parent {
+			JsonValue::Array(childs) => {
+				if let Ok(last) = last.parse::<usize>()
+				{
+					if(last >= childs.len()) {return false;}
+					childs.remove(last);
+					return true;
+				}
+			}
+			JsonValue::Object(childs) => {
+				return (childs.remove(last).is_some());
+			}
+			_ => {},
+		}
+
+		return false;
+	}
+
 	/// set content to a path (use an unsigned int for an array)
 	fn value_set(&mut self, path: String, newval: JsonValue)
 	{

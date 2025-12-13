@@ -38,6 +38,9 @@ pub trait IOwrapper: Display + Debug + Sync + Send {
 	/// set content to a path (use an unsigned int for an array)
 	fn value_get_mut<'a,'b>(&'b mut self, path: String) -> Option<&'a mut JsonValue>
 		where 'b: 'a;
+	
+	/// remove content from a path (use an unsigned int for an array)
+	fn value_remove(&mut self, path: &str) -> bool;
 
 	/// set content to a path (use an unsigned int for an array)
 	fn value_set(&mut self, path: String, newval: JsonValue);
