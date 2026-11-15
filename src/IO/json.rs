@@ -118,7 +118,7 @@ impl IOwrapper for WrapperJson
 		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
 		
 		let Some(value) = get_recursive(splitedPath.clone(), 0, &self.datas) else {
-			if let Some(defaultset) = set_recursive(splitedPath,0,&mut self.datas)
+			if let Some(defaultset) = set_recursive(splitedPath,0,&mut self.datas, true)
 			{
 				*defaultset = default.clone();
 			}
@@ -133,7 +133,7 @@ impl IOwrapper for WrapperJson
 	where 'b: 'a
 	{
 		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
-		return set_recursive(splitedPath, 0, &mut self.datas);
+		return set_recursive(splitedPath, 0, &mut self.datas, false);
 	}
 
 	fn value_remove(&mut self, path: &str) -> bool {
@@ -144,7 +144,7 @@ impl IOwrapper for WrapperJson
 		let parent = match parentPath.is_empty() {
 			true => &mut self.datas,
 			false => {
-				let Some(parent) = set_recursive(parentPath.to_vec(), 0, &mut self.datas) else {return false;};
+				let Some(parent) = set_recursive(parentPath.to_vec(), 0, &mut self.datas, false) else {return false;};
 				parent
 			}
 		};
@@ -171,7 +171,7 @@ impl IOwrapper for WrapperJson
 	fn value_set(&mut self, path: String, newval: JsonValue)
 	{
 		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
-		if let Some(oldvalue) = set_recursive(splitedPath, 0, &mut self.datas)
+		if let Some(oldvalue) = set_recursive(splitedPath, 0, &mut self.datas, true)
 		{
 			*oldvalue = newval.into();
 		}
@@ -233,7 +233,8 @@ fn get_recursive(splintedPath: Vec<String>, i: usize, parent: &JsonValue) -> Opt
 	}
 }
 
-fn set_recursive(splintedPath: Vec<String>, i: usize, parent: &mut JsonValue) -> Option<&mut JsonValue>
+/// return the node at the path, creating missing object keys ; an out of bounds array index is created only if `extendArray`
+fn set_recursive(splintedPath: Vec<String>, i: usize, parent: &mut JsonValue, extendArray: bool) -> Option<&mut JsonValue>
 {
 	let Some(thisdir) = splintedPath.get(i) else
 	{
@@ -249,25 +250,32 @@ fn set_recursive(splintedPath: Vec<String>, i: usize, parent: &mut JsonValue) ->
 			
 			if (i + 1 < splintedPath.len())
 			{
-				return set_recursive(splintedPath.clone(), i + 1, parentAsObject.get_mut(thisdir).unwrap());
+				return set_recursive(splintedPath.clone(), i + 1, parentAsObject.get_mut(thisdir).unwrap(), extendArray);
 			}
 			return parentAsObject.get_mut(thisdir);
 		}
 		JsonValue::Array(parentAsArray) => {
-			if let Ok(tryingint) = thisdir.parse::<usize>()
+			let Ok(tryingint) = thisdir.parse::<usize>() else
 			{
-				if (tryingint < parentAsArray.len())
+				return None;
+			};
+
+			if (tryingint >= parentAsArray.len())
+			{
+				if (!extendArray)
 				{
 					return None;
 				}
-				else if (i + 1 < splintedPath.len())
-				{
-					return set_recursive(splintedPath.clone(), i + 1, parentAsArray.get_mut(tryingint).unwrap());
-				}
-				
-				return parentAsArray.get_mut(tryingint);
+				// grow the array up to the index, the new slot is an object like a missing object key
+				parentAsArray.resize(tryingint, JsonValue::Null);
+				parentAsArray.push(JsonValue::Object(Default::default()));
 			}
-			return None;
+
+			if (i + 1 < splintedPath.len())
+			{
+				return set_recursive(splintedPath, i + 1, &mut parentAsArray[tryingint], extendArray);
+			}
+			return parentAsArray.get_mut(tryingint);
 		}
 		_ => {}
 	}

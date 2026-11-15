@@ -33,9 +33,11 @@ pub trait IOwrapper: Display + Debug + Sync + Send {
 	fn value_get(&self, path: String) -> Option<JsonValue>;
 
 	/// get content from a path (use an unsigned int for an array), or SET the default value and return it instead
+	/// an out of bounds array index grows the array (filled with null)
 	fn value_get_or_set(&mut self, path: String, default: JsonValue) -> JsonValue;
 
-	/// set content to a path (use an unsigned int for an array)
+	/// get mutable content from a path (use an unsigned int for an array)
+	/// missing object keys are created, an out of bounds array index returns None
 	fn value_get_mut<'a,'b>(&'b mut self, path: String) -> Option<&'a mut JsonValue>
 		where 'b: 'a;
 	
@@ -43,5 +45,6 @@ pub trait IOwrapper: Display + Debug + Sync + Send {
 	fn value_remove(&mut self, path: &str) -> bool;
 
 	/// set content to a path (use an unsigned int for an array)
+	/// an out of bounds array index grows the array (filled with null)
 	fn value_set(&mut self, path: String, newval: JsonValue);
 }

@@ -78,6 +78,65 @@ mod tests {
 		assert_eq!(unwrap_or_not(config.value_get("test/get/mut")), "testmut is ok");
 	}
 	
+	#[test]
+	fn arrayIndex()
+	{
+		setupTestsJson();
+		HConfigManager::singleton().create::<WrapperJson>("test_array").expect("Cannot create test_array HConfig");
+		let mut config = HConfigManager::singleton().get("test_array").expect("Cannot get config");
+		config.value_set("array", JsonValue::Array(vec!["first".to_string().into(), "second".to_string().into()]));
+
+		// get out of bounds
+		assert_eq!(config.value_get("array/5"), None);
+		assert_eq!(config.value_get("array/5/cmd"), None);
+
+		// get_mut out of bounds : no panic, no creation
+		assert!(config.value_get_mut("array/5/cmd").is_none());
+		assert!(config.value_get_mut("array/5").is_none());
+		assert_eq!(arrayLen(config.value_get("array")), 2);
+
+		// set on an existing index
+		config.value_set("array/1", "second is updated".to_string());
+		assert_eq!(unwrap_or_not(config.value_get("array/1")), "second is updated");
+		assert_eq!(arrayLen(config.value_get("array")), 2);
+
+		// get_mut on an existing index
+		if let Some(tmp) = config.value_get_mut("array/0")
+		{
+			*tmp = JsonValue::String("first is updated".to_string());
+		}
+		assert_eq!(unwrap_or_not(config.value_get("array/0")), "first is updated");
+
+		// set out of bounds : the array grows, filled with null
+		config.value_set("array/4", "fifth".to_string());
+		assert_eq!(arrayLen(config.value_get("array")), 5);
+		assert_eq!(config.value_get("array/3"), Some(JsonValue::Null));
+		assert_eq!(unwrap_or_not(config.value_get("array/4")), "fifth");
+
+		// set out of bounds with a deeper path
+		config.value_set("array/6/cmd", "cmd is ok".to_string());
+		assert_eq!(arrayLen(config.value_get("array")), 7);
+		assert_eq!(unwrap_or_not(config.value_get("array/6/cmd")), "cmd is ok");
+
+		// get_or_set out of bounds
+		assert_eq!(unwrap_or_not(Some(config.value_get_or_set("array/7", "default".to_string()))), "default");
+		assert_eq!(unwrap_or_not(config.value_get("array/7")), "default");
+
+		// remove out of bounds
+		assert!(!config.value_remove("array/20"));
+		assert!(!config.value_remove("array/20/cmd"));
+		assert_eq!(arrayLen(config.value_get("array")), 8);
+	}
+
+	fn arrayLen(value: Option<JsonValue>) -> usize
+	{
+		if let Some(JsonValue::Array(values)) = value
+		{
+			return values.len();
+		}
+		return 0;
+	}
+
 	// simply return a "not ok" is something is wrong
 	fn unwrap_or_not(base: Option<JsonValue>) -> String
 	{

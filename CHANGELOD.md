@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0] - Unreleased
 
+### Fixed
+- `value_get_mut` (and every write through a path) no longer panics on an out of bounds array index (e.g. `array/5/cmd`).
+- `value_set`, `value_get_or_set` and `value_get_mut` now work on an existing array index (they previously did nothing).
+
+### Changed
+- `value_set` and `value_get_or_set` on an out of bounds array index now grow the array up to that index, filling the gap with `null`.
+- `value_get_mut` returns `None` on an out of bounds array index.
+
 ### Notes
 - Development of this version is assisted by an agentic AI (Claude Code), working under a documented workflow (plans, decisions, reviews) with every change reviewed by the maintainer.
 
