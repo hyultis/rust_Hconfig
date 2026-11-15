@@ -1,6 +1,14 @@
 name: tests-and-publish
-run-name: Check code and publish new version on crate.IO
+run-name: Check code and publish new version on crates.io
 on: [ workflow_dispatch ]
+
+# a second run waits for the first one instead of publishing twice
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 env:
   CARGO_TERM_COLOR: always
@@ -8,21 +16,46 @@ env:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    env:
+      RUSTFLAGS: -D warnings
+      RUSTDOCFLAGS: -D warnings
     steps:
-      - uses: actions/checkout@v4
-      - name: Run cargo tests
-        run: cargo test --test tests
+      - uses: actions/checkout@v7
+      - name: Update stable toolchain
+        run: rustup update stable --no-self-update && rustup default stable
+      - name: Build
+        run: cargo build --locked
+      - name: Tests (integration tests and README example)
+        run: cargo test --locked
+      - name: Documentation
+        run: cargo doc --locked --no-deps
+
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write   # required by audit-check to report its result
+    steps:
+      - uses: actions/checkout@v7
+      - uses: rustsec/audit-check@v2.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   publish:
     runs-on: ubuntu-latest
-    needs: tests
+    needs: [ tests, audit ]
+    # only publish from the default branch
+    if: github.ref_name == github.event.repository.default_branch
     environment: release  # Optional: for enhanced security
     permissions:
+      contents: read
       id-token: write     # Required for OIDC token exchange
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      - name: Update stable toolchain
+        run: rustup update stable --no-self-update && rustup default stable
       - uses: rust-lang/crates-io-auth-action@v1
         id: auth
-      - run: cargo publish
+      - run: cargo publish --locked
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
