@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `HConfig::name_get()` returns the config name.
+- The README is the crate documentation, its example is compiled by `cargo test`.
+- Documentation for every public item.
 
 ### Fixed
 - `value_get_mut` (and every write through a path) no longer panics on an out of bounds array index (e.g. `array/5/cmd`).
@@ -23,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - reading (`value_get`, `value_get_mut`, `value_remove`) never creates anything; `value_get_mut` returns `None` and `value_remove` returns `false` if the path does not exist (they previously created the missing object keys);
   - writing (`value_set`, `value_get_or_set`) forces the path : missing keys are created, an out of bounds array index grows the array (filled with `null`), a scalar on the path is replaced by an object (the write was previously ignored);
   - empty segments are ignored (`a//b`, `a/`), an empty path does nothing (it previously created a `""` key).
+- The library name is now `hconfig` (`use hconfig::...`, `hconfig::tinyjson`); the crates.io package name stays `Hconfig`.
 - `HConfigManager::get(&str)` now returns `Option<Arc<RwLock<HConfig>>>` (was a `dashmap` `RefMut`) : use `read()` / `write()` on it. No external type is exposed by the API anymore.
 - `HConfigManager::create` on an already loaded config reloads it in place : handles already returned by `get` see the new content.
 - `HConfig::root_get_mut` now returns `&mut JsonValue`.
@@ -35,6 +38,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Dependencies
 - Removed `dashmap` and `arc-swap` (replaced by `std::sync::RwLock`).
 - Updated all locked dependencies (`cargo update`).
+
+### Migration from 2.x
+- The library is now imported as `hconfig` (the crates.io package keeps the name `Hconfig`) : replace `use Hconfig::...` by `use hconfig::...`.
+- `get()` returns a shared handle : lock it before use.
+  ```rust,ignore
+  // 2.x
+  let mut config = HConfigManager::singleton().get("example").unwrap();
+  // 3.0
+  let config = HConfigManager::singleton().get("example").unwrap();
+  let mut config = config.write().unwrap();
+  ```
+- Paths are `&str` : `value_get_mut("a/b")` instead of `value_get_mut(String)` ; custom `IOwrapper` implementations take `&str` in `init` and `value_*`, and return `&str` from `file_path` and `&'static str` from `file_ext`.
+- `value_get_mut` / `value_remove` no longer create missing keys : use `value_set` or `value_get_or_set` to create a value.
+- An unreadable config file is now an error at `create` / `file_load` instead of an empty config.
+- `Errors::ConfigNotSet` no longer exists.
 
 ### Notes
 - Development of this version is assisted by an agentic AI (Claude Code), working under a documented workflow (plans, decisions, reviews) with every change reviewed by the maintainer.

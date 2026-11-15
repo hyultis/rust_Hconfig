@@ -2,6 +2,7 @@ use std::fmt::{Debug, Display};
 use tinyjson::JsonValue;
 use crate::Errors;
 
+/// json format (`WrapperJson`, default format)
 pub mod json;
 
 /// A configuration file format. Paths are "/" separated keys, an unsigned int targets an array index,

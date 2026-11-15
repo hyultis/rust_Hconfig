@@ -3,6 +3,7 @@ use tinyjson::JsonValue;
 use crate::Errors;
 use crate::IO::IOwrapper;
 
+/// a loaded configuration : path based access to its content, load and save of its file through its `IOwrapper`
 #[derive(Debug)]
 pub struct HConfig
 {

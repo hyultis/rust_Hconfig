@@ -12,6 +12,10 @@ description = "Json configuration file manager"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# the package name "Hconfig" is fixed on crates.io; the library follows the Rust naming : `use hconfig::...`
+[lib]
+name = "hconfig"
+
 [dependencies]
 tinyjson = "2.5"
 thiserror = "2.0"

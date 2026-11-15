@@ -9,11 +9,11 @@ mod tests {
 	use std::io::{ErrorKind, Write};
 	use std::path::Path;
 	use tinyjson::JsonValue;
-	use Hconfig::Errors;
-	use Hconfig::HConfigManager::HConfigManager;
-	use Hconfig::IO::IOwrapper;
-	use Hconfig::IO::json::WrapperJson;
-	use Hconfig::Utils::jsonIntoHashMap;
+	use hconfig::Errors;
+	use hconfig::HConfigManager::HConfigManager;
+	use hconfig::IO::IOwrapper;
+	use hconfig::IO::json::WrapperJson;
+	use hconfig::Utils::jsonIntoHashMap;
 
 	const DEFAULT_CONTENT: &str = r#"{
 		"testget":"testget is ok",

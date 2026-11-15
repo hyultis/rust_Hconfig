@@ -4,6 +4,7 @@ use crate::Errors;
 use crate::HConfig::HConfig;
 use crate::IO::IOwrapper;
 
+/// holds the configs directory and every loaded config, shared by the whole program through `singleton()`
 pub struct HConfigManager
 {
 	confpath: RwLock<String>,
@@ -14,6 +15,7 @@ static SINGLETON: OnceLock<HConfigManager> = OnceLock::new();
 
 impl HConfigManager
 {
+	/// get the manager instance (the configs directory defaults to "./")
 	pub fn singleton() -> &'static HConfigManager
 	{
 		SINGLETON.get_or_init(|| {

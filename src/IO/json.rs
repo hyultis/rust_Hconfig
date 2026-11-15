@@ -6,6 +6,7 @@ use tinyjson::JsonValue;
 use crate::Errors;
 use crate::IO::IOwrapper;
 
+/// json format : the config is stored as `<name>.json` in the configs directory
 #[derive(Debug)]
 pub struct WrapperJson
 {
