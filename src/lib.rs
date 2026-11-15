@@ -1,5 +1,4 @@
 #![allow(non_snake_case)]
-#![allow(dead_code)]
 #![allow(unused_parens)]
 #![deny(unused_crate_dependencies)]
 
@@ -16,10 +15,9 @@ use tinyjson::JsonParseError;
 #[derive(Error, Debug)]
 pub enum Errors
 {
+	/// generic error (config name, message), available for custom `IOwrapper` implementations
 	#[error("config {0} error : {1}")]
 	AnyError(String, String),
-	#[error("config path must be set via 'setConfPath'")]
-	ConfigNotSet,
 	#[error("config {0} cannot create the file {1} : {2}")]
 	ConfigCannotCreateFile(String, String, #[source] std::io::Error),
 	#[error("config {0} cannot load the file {1} : {2}")]

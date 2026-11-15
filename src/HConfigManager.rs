@@ -1,16 +1,13 @@
-use std::sync::{Arc, OnceLock};
-use arc_swap::ArcSwap;
-use dashmap::DashMap;
-use dashmap::mapref::one::RefMut;
+use std::collections::HashMap;
+use std::sync::{Arc, OnceLock, PoisonError, RwLock};
 use crate::Errors;
 use crate::HConfig::HConfig;
 use crate::IO::IOwrapper;
-use crate::IO::json::WrapperJson;
 
 pub struct HConfigManager
 {
-	confpath: ArcSwap<String>,
-	loadedConfs: DashMap<String, HConfig>,
+	confpath: RwLock<String>,
+	loadedConfs: RwLock<HashMap<String, Arc<RwLock<HConfig>>>>,
 }
 
 static SINGLETON: OnceLock<HConfigManager> = OnceLock::new();
@@ -21,8 +18,8 @@ impl HConfigManager
 	{
 		SINGLETON.get_or_init(|| {
 			HConfigManager {
-				confpath: ArcSwap::new(Arc::new("./".to_string())),
-				loadedConfs: DashMap::new(),
+				confpath: RwLock::new("./".to_string()),
+				loadedConfs: RwLock::new(HashMap::new()),
 			}
 		})
 	}
@@ -30,30 +27,39 @@ impl HConfigManager
 	/// set path where fetch and storing configs
 	pub fn confPath_set(&self, path: impl Into<String>)
 	{
-		let path = path.into();
-		self.confpath.swap(Arc::new(path));
+		*self.confpath.write().unwrap_or_else(PoisonError::into_inner) = path.into();
 	}
 
 	/// retrieve configs path
 	pub fn confPath_get(&self) -> String
 	{
-		return (&**self.confpath.load()).clone();
+		return self.confpath.read().unwrap_or_else(PoisonError::into_inner).clone();
 	}
 
-	/// init
-	pub fn create<T: IOwrapper>(&self, name: impl Into<String>) -> Result<(), Errors>
+	/// load (or create) the config "name" with the wrapper T.
+	/// If a config with this name is already loaded, its content is replaced by a fresh load of the file :
+	/// unsaved changes are lost, handles already returned by `get` see the new content.
+	/// Do not call it while holding a lock on this config in the same thread (deadlock).
+	pub fn create<T: IOwrapper + 'static>(&self, name: impl Into<String>) -> Result<(), Errors>
 	{
 		let name = name.into();
-		let newvalue = HConfig::new::<WrapperJson>(name.to_string(), self.confPath_get())?;
+		let newvalue = HConfig::new::<T>(&name, &self.confPath_get())?;
 
-		self.loadedConfs.insert(name.clone(), newvalue);
+		let mut loadedConfs = self.loadedConfs.write().unwrap_or_else(PoisonError::into_inner);
+		let Some(existing) = loadedConfs.get(&name).cloned() else
+		{
+			loadedConfs.insert(name, Arc::new(RwLock::new(newvalue)));
+			return Ok(());
+		};
+		drop(loadedConfs);
+
+		*existing.write().unwrap_or_else(PoisonError::into_inner) = newvalue;
 		return Ok(());
 	}
 
-	/// get config
-	pub fn get(&self, name: impl Into<String>) -> Option<RefMut<'_,String, HConfig>>
+	/// get a shared handle on a loaded config, use `read()` or `write()` on it to access the content
+	pub fn get(&self, name: &str) -> Option<Arc<RwLock<HConfig>>>
 	{
-		let name = name.into();
-		return self.loadedConfs.get_mut(&name);
+		return self.loadedConfs.read().unwrap_or_else(PoisonError::into_inner).get(name).cloned();
 	}
 }

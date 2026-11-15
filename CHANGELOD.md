@@ -7,13 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [3.0.0] - Unreleased
 
+### Added
+- `HConfig::name_get()` returns the config name.
+
 ### Fixed
 - `value_get_mut` (and every write through a path) no longer panics on an out of bounds array index (e.g. `array/5/cmd`).
 - `value_set`, `value_get_or_set` and `value_get_mut` now work on an existing array index (they previously did nothing).
+- `HConfigManager::create::<T>()` now really uses the wrapper `T` (it always used `WrapperJson`).
+- `Utils::jsonIntoHashMap` no longer panics on non string values : they are converted to their json text.
+- An unreadable config file (e.g. invalid UTF-8) now makes `create` / `file_load` return `Errors::ConfigCannotLoadFile` : it was silently loaded as `{}`, then overwritten on the next save.
+- `file_save` writes the temporary file in one go, syncs it to disk before the rename, and removes it on error.
 
-### Changed
-- `value_set` and `value_get_or_set` on an out of bounds array index now grow the array up to that index, filling the gap with `null`.
-- `value_get_mut` returns `None` on an out of bounds array index.
+### Changed (breaking)
+- Path semantics :
+  - reading (`value_get`, `value_get_mut`, `value_remove`) never creates anything; `value_get_mut` returns `None` and `value_remove` returns `false` if the path does not exist (they previously created the missing object keys);
+  - writing (`value_set`, `value_get_or_set`) forces the path : missing keys are created, an out of bounds array index grows the array (filled with `null`), a scalar on the path is replaced by an object (the write was previously ignored);
+  - empty segments are ignored (`a//b`, `a/`), an empty path does nothing (it previously created a `""` key).
+- `HConfigManager::get(&str)` now returns `Option<Arc<RwLock<HConfig>>>` (was a `dashmap` `RefMut`) : use `read()` / `write()` on it. No external type is exposed by the API anymore.
+- `HConfigManager::create` on an already loaded config reloads it in place : handles already returned by `get` see the new content.
+- `HConfig::root_get_mut` now returns `&mut JsonValue`.
+- Paths are `&str` everywhere : `IOwrapper` methods, `HConfig::value_get_mut`, `HConfig::new(&str, &str)`, `IOwrapper::init(&str, &str)`.
+- `value_get_mut` no longer has explicit lifetimes; `file_ext` returns `&'static str`; `file_path` returns `&str`.
+- `Display` of a config now outputs json (it was a Rust debug output).
+- Removed the never produced `Errors::ConfigNotSet` variant; `Errors::AnyError` is documented for custom `IOwrapper` implementations.
+- Removed the unused private field `HConfig::constructed_fullpath` (use `file_path()`) and the crate-wide `allow(dead_code)`.
+
+### Dependencies
+- Removed `dashmap` and `arc-swap` (replaced by `std::sync::RwLock`).
+- Updated all locked dependencies (`cargo update`).
 
 ### Notes
 - Development of this version is assisted by an agentic AI (Claude Code), working under a documented workflow (plans, decisions, reviews) with every change reviewed by the maintainer.

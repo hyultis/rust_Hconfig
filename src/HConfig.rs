@@ -7,28 +7,28 @@ use crate::IO::IOwrapper;
 pub struct HConfig
 {
 	name: String,
-	constructed_fullpath: String,
 	wrapper: Box<dyn IOwrapper + 'static>,
 }
 
 impl HConfig
 {
 	/// create a new instance and autoload content
-	pub fn new<T: IOwrapper + 'static>(name: String, mut path: String) -> Result<HConfig, Errors>
+	pub fn new<T: IOwrapper + 'static>(name: &str, path: &str) -> Result<HConfig, Errors>
 	{
-		if(path.ends_with("/"))
-		{
-			path.pop();
-		}
-
+		let path = path.strip_suffix("/").unwrap_or(path);
 		let fullpath = format!("{}/{}", path, name);
-		let wrapper = T::init(&name, &fullpath)?;
+		let wrapper = T::init(name, &fullpath)?;
 
 		return Ok(HConfig{
-			name,
-			constructed_fullpath: fullpath,
+			name: name.to_string(),
 			wrapper: Box::new(wrapper),
 		});
+	}
+
+	/// get the config name (as given to `HConfigManager::create`)
+	pub fn name_get(&self) -> &str
+	{
+		return &self.name;
 	}
 
 	/// reload content from the file
@@ -44,14 +44,14 @@ impl HConfig
 	}
 
 	/// Get config extension
-	pub fn file_ext<'a>(&self) -> &'a str
+	pub fn file_ext(&self) -> &'static str
 	{
 		return self.wrapper.file_ext();
 	}
 
 	/// get file path
-	pub fn file_path(&self) -> &String {
-		return &self.wrapper.file_path();
+	pub fn file_path(&self) -> &str {
+		return self.wrapper.file_path();
 	}
 
 	/// get root node
@@ -61,40 +61,39 @@ impl HConfig
 	}
 
 	/// get mutable root node
-	pub fn root_get_mut(&mut self) -> &JsonValue
+	pub fn root_get_mut(&mut self) -> &mut JsonValue
 	{
 		return self.wrapper.root_get_mut();
 	}
 
-	/// get content from a path (use an unsigned int for an array)
+	/// get content from a path (use an unsigned int for an array), None if the path does not exist
 	pub fn value_get(&self, path: &str) -> Option<JsonValue>
 	{
-		return self.wrapper.value_get(path.into());
+		return self.wrapper.value_get(path);
 	}
 
-	/// get content from a path (use an unsigned int for an array), or SET default and return it instead
+	/// get content from a path (use an unsigned int for an array), or SET default (forcing the path) and return it instead
 	pub fn value_get_or_set(&mut self, path: &str, default: impl Into<JsonValue>) -> JsonValue
 	{
-		return self.wrapper.value_get_or_set(path.into(),default.into());
+		return self.wrapper.value_get_or_set(path, default.into());
 	}
 
-	/// set content to a path (use an unsigned int for an array)
-	pub fn value_get_mut<'a,'b>(&'b mut self, path: impl Into<String>) -> Option<&'a mut JsonValue>
-	where 'b: 'a
+	/// get mutable content from a path (use an unsigned int for an array), None if the path does not exist
+	pub fn value_get_mut(&mut self, path: &str) -> Option<&mut JsonValue>
 	{
-		return self.wrapper.value_get_mut(path.into());
+		return self.wrapper.value_get_mut(path);
 	}
 
-	/// remove content from a path (use an unsigned int for an array)
+	/// remove content from a path (use an unsigned int for an array), false if the path does not exist
 	pub fn value_remove(&mut self, path: &str) -> bool
 	{
-		return self.wrapper.value_remove(path.into());
+		return self.wrapper.value_remove(path);
 	}
 
-	/// set content to a path (use an unsigned int for an array)
+	/// set content to a path (use an unsigned int for an array), forcing the path to exist
 	pub fn value_set(&mut self, path: &str, newval: impl Into<JsonValue>)
 	{
-		return self.wrapper.value_set(path.into(),newval.into());
+		return self.wrapper.value_set(path, newval.into());
 	}
 }
 
