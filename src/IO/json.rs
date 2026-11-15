@@ -1,11 +1,12 @@
-use std::fs::{File, rename};
-use std::io::Read;
+use std::fs::{File, remove_file, rename};
+use std::io::{ErrorKind, Read, Write};
 use std::fmt;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tinyjson::JsonValue;
 use crate::Errors;
 use crate::IO::IOwrapper;
 
+/// json format : the config is stored as `<name>.json` in the configs directory
 #[derive(Debug)]
 pub struct WrapperJson
 {
@@ -16,30 +17,28 @@ pub struct WrapperJson
 
 impl WrapperJson
 {
-	fn file_get(&self, suffix: String) -> Result<(File, String), Errors>
-	{
-		let tmp_path = format!("{}{}", self.path, suffix);
-		let file;
-		if let Ok(tmp) = File::open(&tmp_path)
-		{
-			file = tmp;
-		} else {
-			file = File::create(&tmp_path).map_err(|err| Errors::ConfigCannotCreateFile(self.name.clone(), tmp_path.clone(), err))?;
-		}
-		return Ok((file,tmp_path));
-	}
-
+	/// read the config file : a missing file is created empty, an empty file is "{}",
+	/// an unreadable file is an error (never replaced by "{}", to not overwrite it on the next save)
 	fn file_content_get(&self) -> Result<String, Errors>
 	{
-
-		let (mut file,_) = self.file_get("".to_string())?;
+		let loadError = |err| Errors::ConfigCannotLoadFile(self.name.clone(), self.path.clone(), err);
 
 		let mut content = String::new();
-		if (file.read_to_string(&mut content).is_err() || content.is_empty())
+		match File::open(&self.path)
+		{
+			Ok(mut file) => {
+				file.read_to_string(&mut content).map_err(loadError)?;
+			}
+			Err(err) if err.kind() == ErrorKind::NotFound => {
+				File::create(&self.path).map_err(|err| Errors::ConfigCannotCreateFile(self.name.clone(), self.path.clone(), err))?;
+			}
+			Err(err) => return Err(loadError(err)),
+		}
+
+		if (content.trim().is_empty())
 		{
 			content = "{}".to_string();
 		}
-
 		return Ok(content);
 	}
 }
@@ -47,13 +46,12 @@ impl WrapperJson
 impl IOwrapper for WrapperJson
 {
 	/// create a new instance and autoload content
-	fn init(name: &String, path: &String) -> Result<WrapperJson, Errors>
+	fn init(name: &str, path: &str) -> Result<WrapperJson, Errors>
 	{
-		let path = format!("{}.{}", path, "json");
 		let mut tmp = WrapperJson
 		{
-			name: name.clone(),
-			path: path.clone(),
+			name: name.to_string(),
+			path: format!("{}.{}", path, "json"),
 			datas: JsonValue::Object(Default::default()),
 		};
 		tmp.file_load()?;
@@ -68,28 +66,37 @@ impl IOwrapper for WrapperJson
 
 		return Ok(());
 	}
-	
-	
-	/// save content into a file
+
+	/// save content into a temporary file synced on disk, then rename it over the config file
 	fn file_save(&self) -> Result<(), Errors>
 	{
-		let (mut tmp_file, path) = self.file_get(format!("_{}", SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos().to_string()))?;
+		let saveError = |err| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), err);
 
-		self.datas.format_to(&mut tmp_file)
-			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
+		let content = self.datas.format().map_err(|e| saveError(std::io::Error::other(e)))?;
+		let tmpPath = format!("{}_{}", self.path, SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos());
 
-		rename(&path, self.path.clone())
-			.map_err(|e| Errors::ConfigCannotSaveFile(self.name.clone(), self.path.clone(), e))?;
+		let written = File::create(&tmpPath)
+			.and_then(|mut file| {
+				file.write_all(content.as_bytes())?;
+				file.sync_all()
+			})
+			.and_then(|_| rename(&tmpPath, &self.path));
+
+		if let Err(err) = written
+		{
+			let _ = remove_file(&tmpPath);
+			return Err(saveError(err));
+		}
 		return Ok(());
 	}
 
 	/// Get config extension
-	fn file_ext<'a>(&self) -> &'a str {
+	fn file_ext(&self) -> &'static str {
 		return "json";
 	}
 
 	/// get file path
-	fn file_path(&self) -> &String {
+	fn file_path(&self) -> &str {
 		&self.path
 	}
 
@@ -104,50 +111,51 @@ impl IOwrapper for WrapperJson
 	{
 		return &mut self.datas;
 	}
-	
+
 	/// get content from a path (use an unsigned int for an array)
-	fn value_get(&self, path: String) -> Option<JsonValue>
+	fn value_get(&self, path: &str) -> Option<JsonValue>
 	{
-		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
-		return get_recursive(splitedPath, 0, &self.datas);
+		let segments = path_split(path);
+		if (segments.is_empty())
+		{
+			return None;
+		}
+		return node_get(&self.datas, &segments).cloned();
 	}
 
 	/// get content from a path (use an unsigned int for an array), or SET default and return it instead
-	fn value_get_or_set(&mut self, path: String, default: JsonValue) -> JsonValue
+	fn value_get_or_set(&mut self, path: &str, default: JsonValue) -> JsonValue
 	{
-		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
-		
-		let Some(value) = get_recursive(splitedPath.clone(), 0, &self.datas) else {
-			if let Some(defaultset) = set_recursive(splitedPath,0,&mut self.datas)
-			{
-				*defaultset = default.clone();
-			}
-			return default;
-		};
+		let segments = path_split(path);
+		if let Some(value) = node_get(&self.datas, &segments).filter(|_| !segments.is_empty())
+		{
+			return value.clone();
+		}
 
-		return value;
+		if let Some(node) = node_force(&mut self.datas, &segments)
+		{
+			*node = default.clone();
+		}
+		return default;
 	}
 
-	/// set content to a path (use an unsigned int for an array)
-	fn value_get_mut<'a,'b>(&'b mut self, path: String) -> Option<&'a mut JsonValue>
-	where 'b: 'a
+	/// get mutable content from a path (use an unsigned int for an array), None if the path does not exist
+	fn value_get_mut(&mut self, path: &str) -> Option<&mut JsonValue>
 	{
-		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
-		return set_recursive(splitedPath, 0, &mut self.datas);
+		let segments = path_split(path);
+		if (segments.is_empty())
+		{
+			return None;
+		}
+		return node_get_mut(&mut self.datas, &segments);
 	}
 
-	fn value_remove(&mut self, path: &str) -> bool {
-		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
-
-		let Some((last, parentPath)) = splitedPath.split_last() else {return false;};
-
-		let parent = match parentPath.is_empty() {
-			true => &mut self.datas,
-			false => {
-				let Some(parent) = set_recursive(parentPath.to_vec(), 0, &mut self.datas) else {return false;};
-				parent
-			}
-		};
+	/// remove content from a path (use an unsigned int for an array)
+	fn value_remove(&mut self, path: &str) -> bool
+	{
+		let segments = path_split(path);
+		let Some((last, parentPath)) = segments.split_last() else {return false;};
+		let Some(parent) = node_get_mut(&mut self.datas, parentPath) else {return false;};
 
 		match parent {
 			JsonValue::Array(childs) => {
@@ -159,7 +167,7 @@ impl IOwrapper for WrapperJson
 				}
 			}
 			JsonValue::Object(childs) => {
-				return (childs.remove(last).is_some());
+				return (childs.remove(*last).is_some());
 			}
 			_ => {},
 		}
@@ -168,12 +176,11 @@ impl IOwrapper for WrapperJson
 	}
 
 	/// set content to a path (use an unsigned int for an array)
-	fn value_set(&mut self, path: String, newval: JsonValue)
+	fn value_set(&mut self, path: &str, newval: JsonValue)
 	{
-		let splitedPath: Vec<String> = path.split("/").map(|s| s.to_string()).collect();
-		if let Some(oldvalue) = set_recursive(splitedPath, 0, &mut self.datas)
+		if let Some(oldvalue) = node_force(&mut self.datas, &path_split(path))
 		{
-			*oldvalue = newval.into();
+			*oldvalue = newval;
 		}
 	}
 }
@@ -181,95 +188,80 @@ impl IOwrapper for WrapperJson
 impl fmt::Display for WrapperJson {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result
 	{
-		match &self.datas {
-			JsonValue::Number(x) => write!(f, "{}", x),
-			JsonValue::Boolean(x) => write!(f, "{}", x),
-			JsonValue::String(x) => write!(f, "{}", x),
-			JsonValue::Null => write!(f, "null"),
-			JsonValue::Array(x) => write!(f, "{:#?}", x),
-			JsonValue::Object(x) => write!(f, "{:#?}", x),
-		}
+		let content = self.datas.format().map_err(|_| fmt::Error)?;
+		return write!(f, "{}", content);
 	}
 }
 
-fn get_recursive(splintedPath: Vec<String>, i: usize, parent: &JsonValue) -> Option<JsonValue>
+/// split a path on "/", ignoring empty segments
+fn path_split(path: &str) -> Vec<&str>
 {
-	let Some(thisdir) = splintedPath.get(i) else
-	{
-		return None;
-	};
-
-	if let JsonValue::Array(parentAsArray) = &parent
-	{
-		if let Ok(tryingint) = thisdir.parse::<usize>()
-		{
-			if (tryingint >= parentAsArray.len())
-			{
-				return None;
-			}
-			else if (i + 1 < splintedPath.len())
-			{
-				return get_recursive(splintedPath.clone(), i + 1, parentAsArray.get(tryingint).unwrap());
-			}
-			return Some(parentAsArray[tryingint].clone());
-		}
-		return None;
-	}
-	else if let JsonValue::Object(parentAsObject) = &parent
-	{
-		if (!parentAsObject.contains_key(thisdir))
-		{
-			return None;
-		}
-		else if (i + 1 < splintedPath.len())
-		{
-			return get_recursive(splintedPath.clone(), i + 1, parentAsObject.get(thisdir).unwrap());
-		}
-		return Some(parentAsObject[thisdir].clone());
-	}
-	else
-	{
-		return None;
-	}
+	return path.split('/').filter(|segment| !segment.is_empty()).collect();
 }
 
-fn set_recursive(splintedPath: Vec<String>, i: usize, parent: &mut JsonValue) -> Option<&mut JsonValue>
+/// return the node at the path, without creating anything
+fn node_get<'a>(root: &'a JsonValue, segments: &[&str]) -> Option<&'a JsonValue>
 {
-	let Some(thisdir) = splintedPath.get(i) else
+	let mut node = root;
+	for segment in segments
+	{
+		node = match node
+		{
+			JsonValue::Object(object) => object.get(*segment)?,
+			JsonValue::Array(array) => array.get(segment.parse::<usize>().ok()?)?,
+			_ => return None,
+		};
+	}
+	return Some(node);
+}
+
+/// return the mutable node at the path, without creating anything
+fn node_get_mut<'a>(root: &'a mut JsonValue, segments: &[&str]) -> Option<&'a mut JsonValue>
+{
+	let mut node = root;
+	for segment in segments
+	{
+		node = match node
+		{
+			JsonValue::Object(object) => object.get_mut(*segment)?,
+			JsonValue::Array(array) => array.get_mut(segment.parse::<usize>().ok()?)?,
+			_ => return None,
+		};
+	}
+	return Some(node);
+}
+
+/// return the mutable node at the path, forcing the path to exist :
+/// a missing key is created, an out of bounds array index grows the array (filled with null),
+/// a scalar on the path is replaced by an object.
+/// None for an empty path or a non numeric segment on an array.
+fn node_force<'a>(root: &'a mut JsonValue, segments: &[&str]) -> Option<&'a mut JsonValue>
+{
+	if (segments.is_empty())
 	{
 		return None;
-	};
-	
-	match parent {
-		JsonValue::Object(parentAsObject) => {
-			if (!parentAsObject.contains_key(thisdir))
-			{
-				parentAsObject.insert(thisdir.clone(),JsonValue::Object(Default::default()));
-			}
-			
-			if (i + 1 < splintedPath.len())
-			{
-				return set_recursive(splintedPath.clone(), i + 1, parentAsObject.get_mut(thisdir).unwrap());
-			}
-			return parentAsObject.get_mut(thisdir);
-		}
-		JsonValue::Array(parentAsArray) => {
-			if let Ok(tryingint) = thisdir.parse::<usize>()
-			{
-				if (tryingint < parentAsArray.len())
-				{
-					return None;
-				}
-				else if (i + 1 < splintedPath.len())
-				{
-					return set_recursive(splintedPath.clone(), i + 1, parentAsArray.get_mut(tryingint).unwrap());
-				}
-				
-				return parentAsArray.get_mut(tryingint);
-			}
-			return None;
-		}
-		_ => {}
 	}
-	return None;
+
+	let mut node = root;
+	for segment in segments
+	{
+		if (!matches!(node, JsonValue::Object(_) | JsonValue::Array(_)))
+		{
+			*node = JsonValue::Object(Default::default());
+		}
+
+		node = match (node, segment.parse::<usize>())
+		{
+			(JsonValue::Array(array), Ok(index)) => {
+				if (index >= array.len())
+				{
+					array.resize(index + 1, JsonValue::Null);
+				}
+				&mut array[index]
+			}
+			(JsonValue::Object(object), _) => object.entry(segment.to_string()).or_insert(JsonValue::Null),
+			_ => return None,
+		};
+	}
+	return Some(node);
 }

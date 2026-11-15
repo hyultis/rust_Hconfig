@@ -1,6 +1,6 @@
 [package]
 name = "Hconfig"
-version = "2.0.2"
+version = "3.0.0"
 authors = ["Hyultis <hyultis@gmail.com>"]
 edition = "2024"
 license = "MIT OR Apache-2.0"
@@ -12,8 +12,10 @@ description = "Json configuration file manager"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# the package name "Hconfig" is fixed on crates.io; the library follows the Rust naming : `use hconfig::...`
+[lib]
+name = "hconfig"
+
 [dependencies]
 tinyjson = "2.5"
-dashmap = "7.0.0-rc2"
-arc-swap = "1.7"
 thiserror = "2.0"
